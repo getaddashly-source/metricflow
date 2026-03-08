@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Separator } from "@/components/ui/separator";
 import { SyncButton } from "./sync-button";
 import { SeedDemoButton } from "./seed-demo-button";
+import { GoogleSyncButton } from "./google-sync-button";
+import { GoogleSeedDemoButton } from "./google-seed-demo-button";
 import { MetricCards } from "./metric-cards";
 import { CampaignTable } from "./campaign-table";
 
@@ -10,6 +12,19 @@ interface InsightRow {
   campaign_id: string;
   campaign_name: string | null;
   objective: string | null;
+  impressions: number;
+  clicks: number;
+  spend: number;
+  reach: number;
+  conversions: number;
+  conversion_value: number;
+  date_start: string;
+}
+
+interface GoogleInsightRow {
+  campaign_id: string;
+  campaign_name: string | null;
+  campaign_type: string | null;
   impressions: number;
   clicks: number;
   spend: number;
@@ -48,8 +63,18 @@ export default async function AnalyticsPage() {
 
   const shopifyStore = shopifyStores?.[0] ?? null;
 
+  // Fetch connected Google account (may not exist)
+  const { data: googleAccounts } = await supabase
+    .from("google_ad_accounts")
+    .select("id, google_customer_id, google_account_name")
+    .eq("user_id", user.id)
+    .eq("is_active", true)
+    .limit(1);
+
+  const googleAccount = googleAccounts?.[0] ?? null;
+
   // If nothing is connected, show a helpful message instead of redirecting
-  if (!metaAccount && !shopifyStore) {
+  if (!metaAccount && !shopifyStore && !googleAccount) {
     return (
       <div className="space-y-6">
         <div>
@@ -62,8 +87,8 @@ export default async function AnalyticsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-lg font-semibold">No platforms connected</p>
           <p className="mb-6 max-w-md text-sm text-muted-foreground">
-            Go to the Dashboard and connect your Meta Ad Account or Shopify store
-            to start tracking performance analytics.
+            Go to the Dashboard and connect your Meta Ad Account, Shopify store,
+            or Google Ads account to start tracking performance analytics.
           </p>
           <a href="/dashboard">
             <button className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
@@ -79,6 +104,7 @@ export default async function AnalyticsPage() {
   const connectedPlatforms: string[] = [];
   if (metaAccount) connectedPlatforms.push(metaAccount.meta_account_name ?? metaAccount.meta_account_id);
   if (shopifyStore) connectedPlatforms.push(shopifyStore.shop_name ?? shopifyStore.shop_domain);
+  if (googleAccount) connectedPlatforms.push(googleAccount.google_account_name ?? googleAccount.google_customer_id);
 
   // Fetch Meta insights if account exists
   let insights: InsightRow[] = [];
@@ -91,8 +117,25 @@ export default async function AnalyticsPage() {
     insights = (data ?? []) as InsightRow[];
   }
 
+  // Fetch Google insights if account exists
+  let googleInsights: GoogleInsightRow[] = [];
+  if (googleAccount) {
+    const { data } = await supabase
+      .from("google_campaign_insights")
+      .select("*")
+      .eq("google_ad_account_id", googleAccount.id)
+      .order("date_start", { ascending: false });
+    googleInsights = (data ?? []) as GoogleInsightRow[];
+  }
+
+  // Combine all insights for aggregate totals
+  const allInsights = [
+    ...insights.map((r) => ({ ...r, source: "meta" as const })),
+    ...googleInsights.map((r) => ({ ...r, objective: r.campaign_type, source: "google" as const })),
+  ];
+
   // Aggregate totals across all campaigns / days
-  const totals = (insights ?? []).reduce(
+  const totals = allInsights.reduce(
     (acc, row) => {
       acc.impressions += Number(row.impressions);
       acc.clicks += Number(row.clicks);
@@ -137,8 +180,9 @@ export default async function AnalyticsPage() {
     }
   >();
 
-  for (const row of insights ?? []) {
-    const existing = campaignMap.get(row.campaign_id);
+  for (const row of allInsights) {
+    const key = `${row.source}_${row.campaign_id}`;
+    const existing = campaignMap.get(key);
     if (existing) {
       existing.impressions += Number(row.impressions);
       existing.clicks += Number(row.clicks);
@@ -148,9 +192,9 @@ export default async function AnalyticsPage() {
       existing.conversionValue += Number(row.conversion_value);
       existing.days += 1;
     } else {
-      campaignMap.set(row.campaign_id, {
+      campaignMap.set(key, {
         campaign_id: row.campaign_id,
-        campaign_name: row.campaign_name ?? "Unnamed",
+        campaign_name: `${row.source === "google" ? "[Google] " : "[Meta] "}${row.campaign_name ?? "Unnamed"}`,
         objective: row.objective,
         impressions: Number(row.impressions),
         clicks: Number(row.clicks),
@@ -177,7 +221,7 @@ export default async function AnalyticsPage() {
   // Sort by spend descending
   campaigns.sort((a, b) => b.spend - a.spend);
 
-  const hasData = (insights ?? []).length > 0;
+  const hasData = allInsights.length > 0;
 
   return (
     <div className="space-y-6">
@@ -191,7 +235,10 @@ export default async function AnalyticsPage() {
             </span>
           </p>
         </div>
-        {metaAccount && <SyncButton />}
+        <div className="flex items-center gap-3">
+          {metaAccount && <SyncButton />}
+          {googleAccount && <GoogleSyncButton />}
+        </div>
       </div>
 
       <Separator />
@@ -200,14 +247,16 @@ export default async function AnalyticsPage() {
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-lg font-semibold">No insights data yet</p>
           <p className="mb-6 max-w-md text-sm text-muted-foreground">
-            {metaAccount
-              ? 'Click "Sync Data" to fetch your campaign performance from Meta, or load demo data to preview the dashboard.'
-              : "Connect a Meta Ad Account from the Dashboard to sync campaign insights, or load demo data to preview."}
+            {metaAccount || googleAccount
+              ? 'Click "Sync Data" to fetch campaign performance, or load demo data to preview the dashboard.'
+              : "Connect a Meta Ad Account or Google Ads account from the Dashboard to sync campaign insights."}
           </p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             {metaAccount && <SyncButton />}
             {metaAccount && <SeedDemoButton />}
-            {!metaAccount && (
+            {googleAccount && <GoogleSyncButton />}
+            {googleAccount && <GoogleSeedDemoButton />}
+            {!metaAccount && !googleAccount && (
               <a href="/dashboard">
                 <button className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                   Go to Dashboard
