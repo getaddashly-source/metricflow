@@ -5,8 +5,16 @@ import { SyncButton } from "./sync-button";
 import { SeedDemoButton } from "./seed-demo-button";
 import { GoogleSyncButton } from "./google-sync-button";
 import { GoogleSeedDemoButton } from "./google-seed-demo-button";
+import { ShopifySyncButton } from "./shopify-sync-button";
+import { ShopifySeedDemoButton } from "./shopify-seed-demo-button";
 import { MetricCards } from "./metric-cards";
 import { CampaignTable } from "./campaign-table";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface InsightRow {
   campaign_id: string;
@@ -32,6 +40,31 @@ interface GoogleInsightRow {
   conversions: number;
   conversion_value: number;
   date_start: string;
+}
+
+interface ShopifyOrderRow {
+  id: string;
+  order_date: string;
+  total_orders: number;
+  total_revenue: number;
+  total_refunds: number;
+  net_revenue: number;
+  total_items_sold: number;
+  new_customers: number;
+  returning_customers: number;
+  avg_order_value: number;
+  orders_fulfilled: number;
+  orders_pending: number;
+  orders_cancelled: number;
+}
+
+interface ShopifyProductRow {
+  id: string;
+  product_title: string;
+  variant_title: string | null;
+  total_quantity_sold: number;
+  total_revenue: number;
+  total_orders: number;
 }
 
 export default async function AnalyticsPage() {
@@ -128,6 +161,53 @@ export default async function AnalyticsPage() {
     googleInsights = (data ?? []) as GoogleInsightRow[];
   }
 
+  // Fetch Shopify order analytics if store exists
+  let shopifyOrders: ShopifyOrderRow[] = [];
+  let shopifyProducts: ShopifyProductRow[] = [];
+  if (shopifyStore) {
+    const { data: orderData } = await supabase
+      .from("shopify_order_analytics")
+      .select("*")
+      .eq("shopify_store_id", shopifyStore.id)
+      .order("order_date", { ascending: false });
+    shopifyOrders = (orderData ?? []) as ShopifyOrderRow[];
+
+    const { data: productData } = await supabase
+      .from("shopify_product_analytics")
+      .select("*")
+      .eq("shopify_store_id", shopifyStore.id)
+      .order("total_revenue", { ascending: false });
+    shopifyProducts = (productData ?? []) as ShopifyProductRow[];
+  }
+
+  // Shopify aggregated totals
+  const shopifyTotals = shopifyOrders.reduce(
+    (acc, row) => {
+      acc.totalOrders += Number(row.total_orders);
+      acc.totalRevenue += Number(row.total_revenue);
+      acc.totalRefunds += Number(row.total_refunds);
+      acc.netRevenue += Number(row.net_revenue);
+      acc.itemsSold += Number(row.total_items_sold);
+      acc.newCustomers += Number(row.new_customers);
+      acc.returningCustomers += Number(row.returning_customers);
+      return acc;
+    },
+    {
+      totalOrders: 0,
+      totalRevenue: 0,
+      totalRefunds: 0,
+      netRevenue: 0,
+      itemsSold: 0,
+      newCustomers: 0,
+      returningCustomers: 0,
+    },
+  );
+
+  const shopifyAov =
+    shopifyTotals.totalOrders > 0
+      ? shopifyTotals.totalRevenue / shopifyTotals.totalOrders
+      : 0;
+
   // Combine all insights for aggregate totals
   const allInsights = [
     ...insights.map((r) => ({ ...r, source: "meta" as const })),
@@ -222,6 +302,7 @@ export default async function AnalyticsPage() {
   campaigns.sort((a, b) => b.spend - a.spend);
 
   const hasData = allInsights.length > 0;
+  const hasShopifyData = shopifyOrders.length > 0;
 
   return (
     <div className="space-y-6">
@@ -238,25 +319,28 @@ export default async function AnalyticsPage() {
         <div className="flex items-center gap-3">
           {metaAccount && <SyncButton />}
           {googleAccount && <GoogleSyncButton />}
+          {shopifyStore && <ShopifySyncButton />}
         </div>
       </div>
 
       <Separator />
 
-      {!hasData ? (
+      {!hasData && !hasShopifyData ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <p className="text-lg font-semibold">No insights data yet</p>
           <p className="mb-6 max-w-md text-sm text-muted-foreground">
-            {metaAccount || googleAccount
-              ? 'Click "Sync Data" to fetch campaign performance, or load demo data to preview the dashboard.'
-              : "Connect a Meta Ad Account or Google Ads account from the Dashboard to sync campaign insights."}
+            {metaAccount || googleAccount || shopifyStore
+              ? 'Click "Sync Data" to fetch performance data, or load demo data to preview the dashboard.'
+              : "Connect a platform from the Dashboard to sync analytics."}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             {metaAccount && <SyncButton />}
             {metaAccount && <SeedDemoButton />}
             {googleAccount && <GoogleSyncButton />}
             {googleAccount && <GoogleSeedDemoButton />}
-            {!metaAccount && !googleAccount && (
+            {shopifyStore && <ShopifySyncButton />}
+            {shopifyStore && <ShopifySeedDemoButton />}
+            {!metaAccount && !googleAccount && !shopifyStore && (
               <a href="/dashboard">
                 <button className="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                   Go to Dashboard
@@ -267,22 +351,180 @@ export default async function AnalyticsPage() {
         </div>
       ) : (
         <>
-          <MetricCards
-            impressions={totals.impressions}
-            clicks={totals.clicks}
-            spend={totals.spend}
-            reach={totals.reach}
-            ctr={ctr}
-            cpc={cpc}
-            conversions={totals.conversions}
-            conversionValue={totals.conversionValue}
-            roas={roas}
-          />
+          {/* Ad Platform Metrics (Meta + Google) */}
+          {hasData && (
+            <>
+              <MetricCards
+                impressions={totals.impressions}
+                clicks={totals.clicks}
+                spend={totals.spend}
+                reach={totals.reach}
+                ctr={ctr}
+                cpc={cpc}
+                conversions={totals.conversions}
+                conversionValue={totals.conversionValue}
+                roas={roas}
+              />
 
-          <div>
-            <h3 className="mb-4 text-lg font-semibold">Campaign Breakdown</h3>
-            <CampaignTable campaigns={campaigns} />
-          </div>
+              <div>
+                <h3 className="mb-4 text-lg font-semibold">Campaign Breakdown</h3>
+                <CampaignTable campaigns={campaigns} />
+              </div>
+            </>
+          )}
+
+          {/* Shopify Order & Product Metrics */}
+          {hasShopifyData && (
+            <>
+              <Separator />
+              <h3 className="text-lg font-semibold">Shopify Store Analytics</h3>
+
+              {/* Shopify KPI cards */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Orders
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {shopifyTotals.totalOrders.toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Gross Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      ${shopifyTotals.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Net Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-green-600">
+                      ${shopifyTotals.netRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Avg Order Value
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      ${shopifyAov.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Items Sold
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {shopifyTotals.itemsSold.toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Refunds
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold text-red-600">
+                      ${shopifyTotals.totalRefunds.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      New Customers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {shopifyTotals.newCustomers.toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Returning Customers
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">
+                      {shopifyTotals.returningCustomers.toLocaleString()}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Product Performance Table */}
+              {shopifyProducts.length > 0 && (
+                <div>
+                  <h3 className="mb-4 text-lg font-semibold">Top Products</h3>
+                  <div className="rounded-md border">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b bg-muted/50">
+                          <th className="px-4 py-3 text-left font-medium">Product</th>
+                          <th className="px-4 py-3 text-right font-medium">Units Sold</th>
+                          <th className="px-4 py-3 text-right font-medium">Revenue</th>
+                          <th className="px-4 py-3 text-right font-medium">Orders</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shopifyProducts.map((p) => (
+                          <tr key={p.id} className="border-b last:border-0">
+                            <td className="px-4 py-3 font-medium">
+                              {p.product_title}
+                              {p.variant_title && (
+                                <span className="ml-1 text-muted-foreground">
+                                  ({p.variant_title})
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {Number(p.total_quantity_sold).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              ${Number(p.total_revenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {Number(p.total_orders).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </>
       )}
     </div>

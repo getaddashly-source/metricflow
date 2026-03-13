@@ -254,7 +254,13 @@ export default async function DashboardPage({
                       {new Date(store.connected_at).toLocaleDateString()}
                     </span>
                   </div>
-                  <div className="mt-3 flex justify-end">
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Link href="/dashboard/analytics">
+                      <Button variant="outline" size="sm">
+                        <BarChart3 className="mr-1 h-4 w-4" />
+                        View Analytics
+                      </Button>
+                    </Link>
                     <ShopifyDisconnectButton clientId={store.client_id} />
                   </div>
                 </CardContent>
