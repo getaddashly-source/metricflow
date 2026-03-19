@@ -52,17 +52,25 @@ export async function updateSession(request: NextRequest) {
     publicPaths.has(request.nextUrl.pathname) || isAuthRoute || isApiRoute;
 
   if (!user && !isPublicRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
-  }
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+  return redirectResponse;
+}
 
   // Redirect authenticated users away from login page
   if (user && isAuthRoute) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    return NextResponse.redirect(url);
-  }
+  const url = request.nextUrl.clone();
+  url.pathname = "/dashboard";
+  const redirectResponse = NextResponse.redirect(url);
+  supabaseResponse.cookies.getAll().forEach((cookie) => {
+    redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
+  });
+  return redirectResponse;
+}
 
   return supabaseResponse;
 }

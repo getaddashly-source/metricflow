@@ -8,7 +8,6 @@ const REQUIRED_SCOPES = [
   "read_orders",
   "read_products",
   "read_customers",
-  "read_analytics",
 ] as const;
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -71,7 +70,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return jsonError("Unauthorized — valid session required", 401);
+    console.error("Auth error in connect route:", authError);
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/login";
+    loginUrl.searchParams.set(
+      "error",
+      "Your session expired. Please log in again.",
+    );
+    return NextResponse.redirect(loginUrl);
   }
 
   // ── Check for existing connection ─────────────────────────
@@ -118,5 +124,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   oauthUrl.searchParams.set("redirect_uri", redirectUri);
   oauthUrl.searchParams.set("state", state);
 
+  console.log("oauthUrl.toString(): ", oauthUrl.toString());
   return NextResponse.redirect(oauthUrl.toString());
 }

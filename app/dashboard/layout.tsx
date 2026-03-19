@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
+import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { LogOut, LayoutDashboard, BarChart3 } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { SidebarNav } from "./sidebar-nav";
 
 async function signOut() {
   "use server";
@@ -15,7 +15,7 @@ async function signOut() {
 export default async function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const supabase = await createClient();
   const {
@@ -26,43 +26,48 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  const initials = (user.email ?? "U").slice(0, 2).toUpperCase();
+
   return (
-    <div className="min-h-screen bg-background">
-      {/* Top nav */}
-      <header className="border-b">
-        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
-          <div className="flex items-center gap-6">
-            <h1 className="text-lg font-semibold">MetricFlow</h1>
-            <nav className="flex items-center gap-1">
-              <Link href="/dashboard">
-                <Button variant="ghost" size="sm">
-                  <LayoutDashboard className="mr-1 h-4 w-4" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Link href="/dashboard/analytics">
-                <Button variant="ghost" size="sm">
-                  <BarChart3 className="mr-1 h-4 w-4" />
-                  Analytics
-                </Button>
-              </Link>
-            </nav>
+    <div className="min-h-screen bg-zinc-100 text-zinc-900">
+      <div className="mx-auto flex min-h-screen w-full max-w-425">
+        <aside className="hidden w-65 flex-col border-r border-zinc-200 bg-zinc-50 lg:flex">
+          <div className="border-b border-zinc-200 px-6 py-6">
+            <p className="text-3xl font-bold tracking-tight">MetricFlow</p>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-muted-foreground">{user.email}</span>
+          <SidebarNav />
+
+          <div className="border-t border-zinc-200 p-4">
+            <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3">
+              <div className="grid h-9 w-9 place-items-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                {initials}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold">{user.email}</p>
+                <p className="text-xs text-zinc-500">Agency plan</p>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <div className="flex min-h-screen flex-1 flex-col">
+          <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 lg:px-8">
+            <div className="flex items-center gap-3 lg:hidden">
+              <LayoutDashboard className="h-5 w-5 text-blue-600" />
+              <p className="text-lg font-semibold">MetricFlow</p>
+            </div>
+            <p className="hidden text-sm text-zinc-500 lg:block">{user.email}</p>
             <form action={signOut}>
-              <Button variant="ghost" size="sm" type="submit">
+              <Button variant="outline" size="sm" type="submit">
                 <LogOut className="mr-1 h-4 w-4" />
                 Sign out
               </Button>
             </form>
-          </div>
-        </div>
-      </header>
-      <Separator />
+          </header>
 
-      {/* Page content */}
-      <main className="mx-auto max-w-6xl p-4 pt-6">{children}</main>
+          <main className="flex-1 p-4 lg:p-8">{children}</main>
+        </div>
+      </div>
     </div>
   );
 }
