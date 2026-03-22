@@ -33,7 +33,7 @@ export default async function DashboardLayout({
       <div className="mx-auto flex min-h-screen w-full max-w-425">
         <aside className="hidden w-65 flex-col border-r border-zinc-200 bg-zinc-50 lg:flex">
           <div className="border-b border-zinc-200 px-6 py-6">
-            <p className="text-3xl font-bold tracking-tight">MetricFlow</p>
+            <p className="text-3xl font-bold tracking-tight">Addashly</p>
           </div>
           <SidebarNav />
 
@@ -54,7 +54,7 @@ export default async function DashboardLayout({
           <header className="flex h-16 items-center justify-between border-b border-zinc-200 bg-white px-4 lg:px-8">
             <div className="flex items-center gap-3 lg:hidden">
               <LayoutDashboard className="h-5 w-5 text-blue-600" />
-              <p className="text-lg font-semibold">MetricFlow</p>
+              <p className="text-lg font-semibold">Addashly</p>
             </div>
             <p className="hidden text-sm text-zinc-500 lg:block">{user.email}</p>
             <form action={signOut}>
@@ -71,3 +71,5 @@ export default async function DashboardLayout({
     </div>
   );
 }
+
+

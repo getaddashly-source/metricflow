@@ -1,20 +1,20 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy | MetricFlow",
-  description: "MetricFlow Privacy Policy",
+  title: "Privacy Policy | Addashly",
+  description: "Addashly Privacy Policy",
 };
 
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-3xl font-bold tracking-tight">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: March 14, 2026</p>
+      <h1 className="text-3xl font-bold tracking-tight">Addashly Privacy Policy</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: March 21, 2026</p>
 
       <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Information we collect</h2>
         <p className="text-muted-foreground">
-          When you connect your accounts, MetricFlow may process profile and
+          When you connect your accounts, Addashly may process profile and
           account identifiers, and analytics/reporting data such as impressions,
           clicks, spend, conversions, revenue, and related metrics.
         </p>
@@ -25,6 +25,22 @@ export default function PrivacyPage() {
         <p className="text-muted-foreground">
           Data is used to provide dashboards, generate reporting insights, and
           support analytics workflows for authorized users.
+        </p>
+      </section>
+
+      <section className="mt-8 space-y-3">
+        <h2 className="text-xl font-semibold">Meta (Facebook) platform data</h2>
+        <p className="text-muted-foreground">
+          If you connect Meta Ads, Addashly accesses only the permissions you
+          grant through Meta OAuth. For analytics-only workflows, we use
+          Meta-provided ad account and performance data (for example: campaign,
+          ad set, ad metrics such as spend, impressions, clicks, and related
+          insight fields) to display reporting dashboards.
+        </p>
+        <p className="text-muted-foreground">
+          We do not sell Meta platform data and we do not use Meta data for
+          unrelated purposes. Users can disconnect Meta integrations at any
+          time and request deletion of stored integration data.
         </p>
       </section>
 
@@ -44,14 +60,20 @@ export default function PrivacyPage() {
           with legal obligations. You may request deletion of connected data via
           our <Link href="/data-deletion" className="underline">Data Deletion</Link> page.
         </p>
+        <p className="text-muted-foreground">
+          Meta platform users may also initiate deletion through Meta&apos;s data
+          deletion flow, which calls our callback endpoint at
+          <span className="font-medium"> /api/meta/data-deletion</span>.
+        </p>
       </section>
 
       <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Contact</h2>
         <p className="text-muted-foreground">
-          For privacy requests, contact us at <a className="underline" href="mailto:getaddashly@gmail.com">getaddashly@gmail.com</a>.
+          For privacy requests, contact us at <a className="underline" href="mailto:Hello@addashly.com">Hello@addashly.com</a>.
         </p>
       </section>
     </main>
   );
 }
+

@@ -42,6 +42,10 @@ interface MetaErrorResponse {
   };
 }
 
+interface MetaMeResponse {
+  id: string;
+}
+
 // ─── Constants ───────────────────────────────────────────────
 
 const META_GRAPH_BASE = "https://graph.facebook.com/v21.0";
@@ -144,6 +148,24 @@ async function fetchAdAccounts(
   }
 
   return (body as MetaAdAccountsResponse).data;
+}
+
+async function fetchMetaUserId(accessToken: string): Promise<string> {
+  const url = new URL(`${META_GRAPH_BASE}/me`);
+  url.searchParams.set("fields", "id");
+  url.searchParams.set("access_token", accessToken);
+
+  const res = await fetch(url.toString(), { method: "GET" });
+  const body = await res.json();
+
+  if (!res.ok || !body.id) {
+    const error = body as MetaErrorResponse;
+    throw new Error(
+      `Failed to fetch Meta user id: ${error.error?.message ?? res.statusText}`,
+    );
+  }
+
+  return (body as MetaMeResponse).id;
 }
 
 // ─── GET /api/meta/callback ─────────────────────────────────
@@ -257,8 +279,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── 5. Fetch ad accounts ──────────────────────────────────
   let adAccounts: MetaAdAccount[];
+  let metaUserId: string;
 
   try {
+    metaUserId = await fetchMetaUserId(longLivedToken.access_token);
     adAccounts = await fetchAdAccounts(longLivedToken.access_token);
   } catch (err) {
     console.error("[meta/callback] Ad account fetch failed:", err);
@@ -299,6 +323,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       {
         user_id: user.id,
         client_id: clientId,
+        meta_user_id: metaUserId,
         meta_account_id: activeAccount.id,
         meta_account_name: activeAccount.name,
         meta_business_id: activeAccount.business?.id ?? null,
@@ -330,7 +355,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       meta_ad_account_id: adAccountRow.id,
       access_token_enc: encryptedToken,
       token_expires_at: tokenExpiresAt,
-      scopes: "ads_read,ads_management,business_management",
+      scopes: "ads_read",
       last_refreshed_at: new Date().toISOString(),
       refresh_error: null,
     },

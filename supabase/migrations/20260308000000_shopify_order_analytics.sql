@@ -1,5 +1,5 @@
 -- ============================================================
--- MetricFlow: Shopify Order Analytics Schema
+-- Addashly: Shopify Order Analytics Schema
 -- Adds order-level analytics data synced from Shopify Admin API
 -- ============================================================
 
@@ -121,3 +121,5 @@ create trigger trg_shopify_order_analytics_updated_at
 create trigger trg_shopify_product_analytics_updated_at
   before update on public.shopify_product_analytics
   for each row execute function public.set_updated_at();
+
+

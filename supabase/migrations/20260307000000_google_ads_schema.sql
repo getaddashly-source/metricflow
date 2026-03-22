@@ -1,5 +1,5 @@
 -- ============================================================
--- MetricFlow: Google Ads Integration Schema
+-- Addashly: Google Ads Integration Schema
 -- Mirrors Meta/Shopify patterns for Google Ads OAuth + insights
 -- ============================================================
 
@@ -129,3 +129,5 @@ create policy "Service role manages google insights" on public.google_campaign_i
 create trigger trg_google_ad_accounts_updated_at before update on public.google_ad_accounts for each row execute function public.set_updated_at();
 create trigger trg_google_tokens_updated_at before update on public.google_tokens for each row execute function public.set_updated_at();
 create trigger trg_google_campaign_insights_updated_at before update on public.google_campaign_insights for each row execute function public.set_updated_at();
+
+

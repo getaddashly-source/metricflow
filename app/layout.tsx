@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MetricFlow",
+  title: "Addashly",
   description: "Marketing analytics dashboard for authorized ad and commerce accounts",
 };
 
@@ -32,3 +32,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+

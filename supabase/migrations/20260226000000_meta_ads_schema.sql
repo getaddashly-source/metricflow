@@ -1,5 +1,5 @@
 -- ============================================================
--- MetricFlow: Meta Ads Integration Schema
+-- Addashly: Meta Ads Integration Schema
 -- Multi-tenant: agency (auth.users) → clients → ad accounts
 -- ============================================================
 
@@ -179,3 +179,5 @@ create trigger trg_meta_ad_accounts_updated_at
 create trigger trg_meta_tokens_updated_at
   before update on public.meta_tokens
   for each row execute function public.set_updated_at();
+
+

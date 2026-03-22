@@ -7,8 +7,6 @@ const META_OAUTH_BASE = "https://www.facebook.com/v21.0/dialog/oauth";
 
 const REQUIRED_SCOPES = [
   "ads_read",
-  "ads_management",
-  "business_management",
 ] as const;
 
 /** State token lives for 10 minutes — more than enough to complete the flow */

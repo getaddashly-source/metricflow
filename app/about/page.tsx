@@ -1,16 +1,16 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "About | MetricFlow",
-  description: "About MetricFlow analytics platform",
+  title: "About | Addashly",
+  description: "About the Addashly analytics platform",
 };
 
 export default function AboutPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
-      <h1 className="text-3xl font-bold tracking-tight">About MetricFlow</h1>
+      <h1 className="text-3xl font-bold tracking-tight">About Addashly Analytics</h1>
       <p className="mt-4 text-muted-foreground">
-        MetricFlow is a marketing analytics platform that helps authorized users
+        Addashly is a marketing analytics platform that helps authorized users
         view performance data across ad and commerce channels in one dashboard.
       </p>
 
@@ -26,7 +26,7 @@ export default function AboutPage() {
       <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Authorized access only</h2>
         <p className="text-muted-foreground">
-          MetricFlow only accesses account data after explicit user
+          Addashly only accesses account data after explicit user
           authorization. We use platform APIs for reporting and analytics use
           cases and do not engage in policy-violating behavior.
         </p>
@@ -40,3 +40,4 @@ export default function AboutPage() {
     </main>
   );
 }
+
