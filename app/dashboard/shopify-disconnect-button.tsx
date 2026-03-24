@@ -7,6 +7,7 @@ import { Unplug } from "lucide-react";
 
 export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
   const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
   const router = useRouter();
 
   async function handleDisconnect() {
@@ -14,6 +15,7 @@ export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
       return;
     }
 
+    setResult(null);
     setLoading(true);
     try {
       const res = await fetch("/api/shopify/disconnect", {
@@ -23,22 +25,37 @@ export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
       });
 
       if (res.ok) {
-        router.refresh();
+        setResult("Disconnected Shopify store");
+        setTimeout(() => router.refresh(), 1200);
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setResult(`Error: ${body.error ?? "Disconnect failed"}`);
       }
+    } catch {
+      setResult("Error: Network error — check your connection");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <Button
-      variant="destructive"
-      size="sm"
-      onClick={handleDisconnect}
-      disabled={loading}
-    >
-      <Unplug className="mr-1 h-3 w-3" />
-      {loading ? "Disconnecting..." : "Disconnect"}
-    </Button>
+    <div className="flex items-center gap-3">
+      {result && (
+        <span
+          className={`text-sm ${result.startsWith("Error") ? "text-red-600" : "text-green-600"}`}
+        >
+          {result}
+        </span>
+      )}
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={handleDisconnect}
+        disabled={loading}
+      >
+        <Unplug className="mr-1 h-3 w-3" />
+        {loading ? "Disconnecting..." : "Disconnect"}
+      </Button>
+    </div>
   );
 }

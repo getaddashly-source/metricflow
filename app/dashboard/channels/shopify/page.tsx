@@ -27,7 +27,7 @@ export default async function ShopifyPage() {
 
   const { data: stores } = await supabase
     .from("shopify_stores")
-    .select("id, shop_domain, shop_name")
+    .select("id, client_id, shop_domain, shop_name")
     .eq("user_id", user.id)
     .eq("is_active", true)
     .limit(1);
@@ -62,6 +62,7 @@ export default async function ShopifyPage() {
 
   return (
     <ShopifyChannelView
+      clientId={store.client_id ?? DEMO_CLIENT_ID}
       storeLabel={store.shop_name ?? store.shop_domain}
       orders={(orderData ?? []) as ShopifyOrderRow[]}
       products={(productData ?? []) as ShopifyProductRow[]}

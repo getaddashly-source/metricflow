@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptShopifyToken } from "@/lib/shopify/encryption";
+import { syncOrdersForStore } from "@/lib/shopify/insights";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -306,10 +307,39 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // ── 8. Clean up state ─────────────────────────────────────
+  // ── 8. Initial sync (best effort) ────────────────────────
+  // Automatically hydrate dashboard data for first-time connections so users
+  // do not see an empty view before pressing "Sync Shopify" manually.
+  try {
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const dateFrom = thirtyDaysAgo.toISOString().split("T")[0];
+    const dateTo = now.toISOString().split("T")[0];
+
+    const initialSync = await syncOrdersForStore(
+      storeRow.id,
+      shop,
+      encryptedToken,
+      dateFrom,
+      dateTo,
+    );
+
+    if (initialSync.error) {
+      console.warn(
+        "[shopify/callback] Initial sync completed with error:",
+        initialSync.error,
+      );
+    }
+  } catch (err) {
+    console.warn("[shopify/callback] Initial sync failed:", err);
+  }
+
+  // ── 9. Clean up state ─────────────────────────────────────
   await supabase.from("shopify_oauth_states").delete().eq("id", stateRow.id);
 
-  // ── 9. Redirect to dashboard ──────────────────────────────
+  // ── 10. Redirect to dashboard ─────────────────────────────
   return dashboardRedirect(request, {
     shopify_connected: "true",
     shop_name: shopInfo.name || shop,

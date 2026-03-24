@@ -15,6 +15,8 @@ import {
 import { DateRangeTabs } from "@/components/dashboard/date-range-tabs";
 import { SyncButton } from "@/app/dashboard/analytics/sync-button";
 import { GoogleSyncButton } from "@/app/dashboard/analytics/google-sync-button";
+import { DisconnectButton } from "@/app/dashboard/disconnect-button";
+import { GoogleDisconnectButton } from "@/app/dashboard/google-disconnect-button";
 
 type Row = {
   campaign_id: string;
@@ -34,6 +36,7 @@ type Props = {
   iconClassName: string;
   rows: Row[];
   channelType: "meta" | "google";
+  clientId: string;
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -56,6 +59,7 @@ export function AdsChannelView({
   iconClassName,
   rows,
   channelType,
+  clientId,
 }: Props) {
   const [range, setRange] = useState<"1" | "7" | "30">("7");
 
@@ -125,6 +129,11 @@ export function AdsChannelView({
           </div>
           <div className="flex items-center gap-3">
             {channelType === "meta" ? <SyncButton /> : <GoogleSyncButton />}
+            {channelType === "meta" ? (
+              <DisconnectButton clientId={clientId} />
+            ) : (
+              <GoogleDisconnectButton clientId={clientId} />
+            )}
             <Badge className="bg-emerald-100 text-emerald-700">Connected</Badge>
           </div>
         </div>

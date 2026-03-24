@@ -26,7 +26,7 @@ export default async function MetaAdsPage() {
 
   const { data: accounts } = await supabase
     .from("meta_ad_accounts")
-    .select("id, meta_account_name")
+    .select("id, client_id, meta_account_name")
     .eq("user_id", user.id)
     .eq("is_active", true)
     .limit(1);
@@ -61,6 +61,7 @@ export default async function MetaAdsPage() {
       accountLabel={account.meta_account_name ?? "Active account"}
       rows={rows}
       channelType="meta"
+      clientId={account.client_id ?? DEMO_CLIENT_ID}
       icon={<Facebook className="h-6 w-6" />}
       iconClassName="grid h-12 w-12 place-items-center rounded-xl bg-blue-600 text-white"
     />

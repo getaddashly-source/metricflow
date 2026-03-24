@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Addashly",
   description: "Marketing analytics dashboard for authorized ad and commerce accounts",
+  icons: {
+    icon: "/addashly_icon_transparent.png",
+    shortcut: "/addashly_icon_transparent.png",
+    apple: "/addashly_icon_transparent.png",
+  },
 };
 
 export default function RootLayout({

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { DateRangeTabs } from "@/components/dashboard/date-range-tabs";
 import { ShopifySyncButton } from "@/app/dashboard/analytics/shopify-sync-button";
+import { ShopifyDisconnectButton } from "@/app/dashboard/shopify-disconnect-button";
 
 type ShopifyOrderRow = {
   order_date: string;
@@ -27,6 +28,7 @@ type ShopifyProductRow = {
 };
 
 type Props = {
+  clientId: string;
   storeLabel: string;
   orders: ShopifyOrderRow[];
   products: ShopifyProductRow[];
@@ -38,7 +40,7 @@ function toUtcDayTs(date: string) {
   return new Date(`${date}T00:00:00Z`).getTime();
 }
 
-export function ShopifyChannelView({ storeLabel, orders, products }: Props) {
+export function ShopifyChannelView({ clientId, storeLabel, orders, products }: Props) {
   const [range, setRange] = useState<"1" | "7" | "30">("7");
 
   const view = useMemo(() => {
@@ -86,6 +88,7 @@ export function ShopifyChannelView({ storeLabel, orders, products }: Props) {
           </div>
           <div className="flex items-center gap-3">
             <ShopifySyncButton />
+            <ShopifyDisconnectButton clientId={clientId} />
             <Badge className="bg-emerald-100 text-emerald-700">Connected</Badge>
           </div>
         </div>

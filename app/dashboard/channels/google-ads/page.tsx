@@ -26,7 +26,7 @@ export default async function GoogleAdsPage() {
 
   const { data: accounts } = await supabase
     .from("google_ad_accounts")
-    .select("id, google_account_name")
+    .select("id, client_id, google_account_name")
     .eq("user_id", user.id)
     .eq("is_active", true)
     .limit(1);
@@ -61,6 +61,7 @@ export default async function GoogleAdsPage() {
       accountLabel={account.google_account_name ?? "Active account"}
       rows={rows}
       channelType="google"
+      clientId={account.client_id ?? DEMO_CLIENT_ID}
       icon={<Globe className="h-6 w-6" />}
       iconClassName="grid h-12 w-12 place-items-center rounded-xl bg-zinc-800 text-white"
     />
