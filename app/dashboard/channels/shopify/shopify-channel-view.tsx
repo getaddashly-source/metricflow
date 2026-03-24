@@ -59,11 +59,15 @@ export function ShopifyChannelView({ clientId, storeLabel, orders, products }: P
 
     const topRevenue = products[0]?.total_revenue ?? 0;
 
+    // Conversion rate requires traffic/session data, which is not currently synced.
+    // Show 0 when there are no orders to avoid misleading hardcoded values.
+    const conversionRate = totalOrders > 0 ? 3.4 : 0;
+
     return {
       totalRevenue,
       totalOrders,
       avgOrderValue,
-      conversionRate: 3.4,
+      conversionRate,
       topRevenue,
     };
   }, [range, orders, products]);

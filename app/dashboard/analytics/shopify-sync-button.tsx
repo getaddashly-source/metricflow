@@ -21,6 +21,18 @@ export function ShopifySyncButton() {
       if (!res.ok) {
         setResult(`Error: ${body.error ?? "Sync failed"}`);
       } else {
+        const failed = (body.results ?? []).filter(
+          (r: { error?: string | null }) => !!r.error,
+        );
+
+        if (failed.length > 0) {
+          const first = failed[0] as { store?: string; error?: string };
+          setResult(
+            `Error: ${first.store ?? "Store"} sync failed${first.error ? ` (${first.error})` : ""}`,
+          );
+          return;
+        }
+
         const total = body.results?.reduce(
           (sum: number, r: { synced: number }) => sum + r.synced,
           0,
