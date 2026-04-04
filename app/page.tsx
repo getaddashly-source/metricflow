@@ -40,6 +40,12 @@ export default function Home() {
             >
               Contact Team
             </Link>
+            <Link
+              href="/google-ads-api"
+              className="inline-flex items-center justify-center rounded-md border bg-white/80 px-4 py-2 text-sm font-medium hover:bg-accent"
+            >
+              Google Ads API Use Case
+            </Link>
           </div>
         </div>
       </section>
@@ -141,6 +147,12 @@ export default function Home() {
             <li>Does not create, modify, or manage live ad campaigns.</li>
             <li>Uses data only for customer-facing analytics and reporting.</li>
           </ul>
+          <Link
+            href="/google-ads-api"
+            className="mt-5 inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium hover:bg-accent"
+          >
+            View full Google Ads API details
+          </Link>
         </article>
 
         <article className="rounded-2xl border p-6">

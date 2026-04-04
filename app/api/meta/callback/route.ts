@@ -132,15 +132,37 @@ async function exchangeForLongLivedToken(
 async function fetchAdAccounts(
   accessToken: string,
 ): Promise<MetaAdAccount[]> {
-  const url = new URL(`${META_GRAPH_BASE}/me/adaccounts`);
-  url.searchParams.set("fields", "id,name,account_id,account_status,business{id,name}");
-  url.searchParams.set("access_token", accessToken);
-  url.searchParams.set("limit", "100");
+  async function requestAdAccounts(fields: string): Promise<{
+    res: Response;
+    body: unknown;
+  }> {
+    const url = new URL(`${META_GRAPH_BASE}/me/adaccounts`);
+    url.searchParams.set("fields", fields);
+    url.searchParams.set("access_token", accessToken);
+    url.searchParams.set("limit", "100");
 
-  const res = await fetch(url.toString(), { method: "GET" });
-  const body = await res.json();
+    const res = await fetch(url.toString(), { method: "GET" });
+    const body = await res.json();
+    return { res, body };
+  }
 
-  if (!res.ok || !body.data) {
+  let { res, body } = await requestAdAccounts(
+    "id,name,account_id,account_status",
+  );
+
+  // Some apps are granted ads_read but not business_management.
+  // Retry without the business field so OAuth can still complete.
+  if (!res.ok || !(body as MetaAdAccountsResponse).data) {
+    const error = body as MetaErrorResponse;
+    const message = error.error?.message ?? "";
+    if (error.error?.code === 100 && /business_management/i.test(message)) {
+      ({ res, body } = await requestAdAccounts(
+        "id,name,account_id,account_status",
+      ));
+    }
+  }
+
+  if (!res.ok || !(body as MetaAdAccountsResponse).data) {
     const error = body as MetaErrorResponse;
     throw new Error(
       `Failed to fetch ad accounts: ${error.error?.message ?? res.statusText}`,
@@ -279,10 +301,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   // ── 5. Fetch ad accounts ──────────────────────────────────
   let adAccounts: MetaAdAccount[];
-  let metaUserId: string;
+  let metaUserId: string | null = null;
 
   try {
-    metaUserId = await fetchMetaUserId(longLivedToken.access_token);
     adAccounts = await fetchAdAccounts(longLivedToken.access_token);
   } catch (err) {
     console.error("[meta/callback] Ad account fetch failed:", err);
@@ -291,6 +312,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       meta_error: "fetch_accounts_failed",
       message: "Connected to Meta but failed to retrieve ad accounts",
     });
+  }
+
+  // Best-effort fetch for systems that have meta_user_id column available.
+  // This should never block a successful connection.
+  try {
+    metaUserId = await fetchMetaUserId(longLivedToken.access_token);
+  } catch {
+    metaUserId = null;
   }
 
   if (adAccounts.length === 0) {
@@ -316,22 +345,21 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   const encryptedToken = encryptToken(longLivedToken.access_token);
 
+  const accountPayload = {
+    user_id: user.id,
+    client_id: clientId,
+    meta_account_id: activeAccount.id,
+    meta_account_name: activeAccount.name,
+    meta_business_id: activeAccount.business?.id ?? null,
+    is_active: true,
+    connected_at: new Date().toISOString(),
+  };
+
   // Upsert the ad account (handles reconnection after disconnect)
+  // Keep this payload compatible with older schemas.
   const { data: adAccountRow, error: upsertError } = await adminClient
     .from("meta_ad_accounts")
-    .upsert(
-      {
-        user_id: user.id,
-        client_id: clientId,
-        meta_user_id: metaUserId,
-        meta_account_id: activeAccount.id,
-        meta_account_name: activeAccount.name,
-        meta_business_id: activeAccount.business?.id ?? null,
-        is_active: true,
-        connected_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,client_id" },
-    )
+    .upsert(accountPayload, { onConflict: "user_id,client_id" })
     .select("id")
     .single();
 
@@ -347,6 +375,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       meta_error: "save_failed",
       message: "Failed to save ad account connection",
     });
+  }
+
+  // Best-effort persistence for installations that already have meta_user_id.
+  if (metaUserId) {
+    const { error: metaUserUpdateError } = await adminClient
+      .from("meta_ad_accounts")
+      .update({ meta_user_id: metaUserId })
+      .eq("id", adAccountRow.id);
+
+    // Ignore missing-column errors for backward compatibility.
+    if (
+      metaUserUpdateError &&
+      !metaUserUpdateError.message.includes("meta_user_id")
+    ) {
+      console.error(
+        "[meta/callback] meta_user_id update failed:",
+        metaUserUpdateError.message,
+      );
+    }
   }
 
   // Upsert the token (service_role bypasses RLS)

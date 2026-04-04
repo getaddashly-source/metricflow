@@ -29,6 +29,10 @@ export default function DataDeletionPage() {
           obligations require otherwise.
         </p>
         <p className="text-muted-foreground">
+          Deletion requests apply to connected data sources including Google
+          Ads, Meta Ads, and Shopify data stored for Addashly analytics.
+        </p>
+        <p className="text-muted-foreground">
           For Meta (Facebook) platform users, deletion requests may also be
           submitted through Meta&apos;s in-product flow, which calls our callback
           endpoint at <span className="font-medium">/api/meta/data-deletion</span>.

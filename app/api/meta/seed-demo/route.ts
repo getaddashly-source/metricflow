@@ -14,53 +14,58 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const DEMO_CAMPAIGNS = [
   {
     id: "120210001",
-    name: "Summer Sale — Conversions",
+    name: "Advantage+ Shopping - Broad Prospecting",
     objective: "OUTCOME_SALES",
-    baseImpressions: 8500,
-    baseCtr: 2.4,
-    baseSpend: 120,
-    conversionRate: 0.035,
-    avgOrderValue: 68,
+    baseImpressions: 14000,
+    baseCtr: 1.9,
+    baseSpend: 165,
+    conversionRate: 0.026,
+    avgValuePerConversion: 72,
+    status: "ACTIVE",
   },
   {
     id: "120210002",
-    name: "Brand Awareness — Video Views",
+    name: "Reels Awareness - Video Viewers",
     objective: "OUTCOME_AWARENESS",
-    baseImpressions: 22000,
-    baseCtr: 0.9,
-    baseSpend: 85,
-    conversionRate: 0.005,
-    avgOrderValue: 42,
+    baseImpressions: 30000,
+    baseCtr: 0.65,
+    baseSpend: 95,
+    conversionRate: 0.002,
+    avgValuePerConversion: 0,
+    status: "ACTIVE",
   },
   {
     id: "120210003",
-    name: "Retargeting — Cart Abandoners",
+    name: "Catalog Sales - Retargeting 14D Viewers",
     objective: "OUTCOME_SALES",
-    baseImpressions: 3200,
-    baseCtr: 4.1,
-    baseSpend: 65,
-    conversionRate: 0.062,
-    avgOrderValue: 95,
+    baseImpressions: 6200,
+    baseCtr: 3.8,
+    baseSpend: 110,
+    conversionRate: 0.061,
+    avgValuePerConversion: 104,
+    status: "ACTIVE",
   },
   {
     id: "120210004",
-    name: "Lead Gen — Newsletter Signup",
+    name: "Instant Forms - Quote Requests",
     objective: "OUTCOME_LEADS",
-    baseImpressions: 12000,
-    baseCtr: 1.6,
-    baseSpend: 95,
-    conversionRate: 0.018,
-    avgOrderValue: 0,
+    baseImpressions: 16500,
+    baseCtr: 1.35,
+    baseSpend: 120,
+    conversionRate: 0.022,
+    avgValuePerConversion: 18,
+    status: "ACTIVE",
   },
   {
     id: "120210005",
-    name: "Traffic — Blog Content",
+    name: "Click to WhatsApp - Local Leads",
     objective: "OUTCOME_TRAFFIC",
-    baseImpressions: 18000,
-    baseCtr: 1.2,
-    baseSpend: 55,
-    conversionRate: 0.008,
-    avgOrderValue: 35,
+    baseImpressions: 21000,
+    baseCtr: 1.75,
+    baseSpend: 88,
+    conversionRate: 0.011,
+    avgValuePerConversion: 7,
+    status: "PAUSED",
   },
 ];
 
@@ -133,14 +138,25 @@ export async function POST() {
       const cpc = clicks > 0 ? Math.round((spend / clicks) * 10000) / 10000 : 0;
       const cpm = impressions > 0 ? Math.round((spend / impressions) * 1000 * 10000) / 10000 : 0;
 
-      const conversions = Math.max(
+      const conversionsBase = Math.max(
         0,
         Math.round(clicks * randomVariation(campaign.conversionRate, 0.25)),
       );
+
+      // Keep conversion behavior aligned with Meta objectives.
+      const conversions =
+        campaign.objective === "OUTCOME_AWARENESS"
+          ? Math.round(conversionsBase * 0.3)
+          : conversionsBase;
+
       const conversionValue =
-        Math.round(
-          conversions * randomVariation(campaign.avgOrderValue, 0.15) * 100,
-        ) / 100;
+        campaign.avgValuePerConversion > 0
+          ? Math.round(
+              conversions *
+                randomVariation(campaign.avgValuePerConversion, 0.18) *
+                100,
+            ) / 100
+          : 0;
       const costPerConversion =
         conversions > 0
           ? Math.round((spend / conversions) * 10000) / 10000
@@ -162,7 +178,7 @@ export async function POST() {
         conversions,
         conversion_value: conversionValue,
         cost_per_conversion: costPerConversion,
-        campaign_status: "ACTIVE",
+        campaign_status: campaign.status,
         objective: campaign.objective,
       });
     }

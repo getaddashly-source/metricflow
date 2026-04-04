@@ -9,7 +9,7 @@ export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Addashly Privacy Policy</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: March 21, 2026</p>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: April 5, 2026</p>
 
       <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Information we collect</h2>
@@ -25,6 +25,21 @@ export default function PrivacyPage() {
         <p className="text-muted-foreground">
           Data is used to provide dashboards, generate reporting insights, and
           support analytics workflows for authorized users.
+        </p>
+      </section>
+
+      <section className="mt-8 space-y-3">
+        <h2 className="text-xl font-semibold">Google Ads API data</h2>
+        <p className="text-muted-foreground">
+          If you connect Google Ads, Addashly processes Google Ads performance
+          and reporting data for analytics views inside your authorized
+          workspace. This includes metrics and dimensions such as campaign
+          identifiers, impressions, clicks, spend, conversions, and conversion
+          value.
+        </p>
+        <p className="text-muted-foreground">
+          Addashly uses Google Ads API data for read-only reporting. We do not
+          create, update, or delete ad campaigns through this integration.
         </p>
       </section>
 

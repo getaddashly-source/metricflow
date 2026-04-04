@@ -1,5 +1,3 @@
-import { login, signup } from "./actions";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,14 +5,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { LoginForm } from "./login-form";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; message?: string }>;
 }) {
+  const params = await searchParams;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
@@ -25,38 +24,19 @@ export default function LoginPage({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="you@agency.com"
-                required
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button formAction={login} className="flex-1">
-                Log in
-              </Button>
-              <Button formAction={signup} variant="outline" className="flex-1">
-                Sign up
-              </Button>
-            </div>
-          </form>
+          <div className="space-y-3">
+            {params.error ? (
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {params.error}
+              </p>
+            ) : null}
+            {params.message ? (
+              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                {params.message}
+              </p>
+            ) : null}
+            <LoginForm />
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -24,6 +24,16 @@ export default function AboutPage() {
       </section>
 
       <section className="mt-8 space-y-3">
+        <h2 className="text-xl font-semibold">Business model</h2>
+        <p className="text-muted-foreground">
+          Addashly is a software-as-a-service analytics product used by
+          agencies, operators, and in-house teams. We provide consolidated
+          reporting views across ad and commerce channels and do not offer
+          campaign execution services through API write access.
+        </p>
+      </section>
+
+      <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Authorized access only</h2>
         <p className="text-muted-foreground">
           Addashly only accesses account data after explicit user
@@ -34,7 +44,7 @@ export default function AboutPage() {
 
       <section className="mt-8">
         <p className="text-sm text-muted-foreground">
-          Learn more in our <Link href="/privacy" className="underline">Privacy Policy</Link> and <Link href="/terms" className="underline">Terms</Link>.
+          Learn more in our <Link href="/google-ads-api" className="underline">Google Ads API Use Case</Link>, <Link href="/privacy" className="underline">Privacy Policy</Link>, and <Link href="/terms" className="underline">Terms</Link>.
         </p>
       </section>
     </main>

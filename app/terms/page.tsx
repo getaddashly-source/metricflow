@@ -7,7 +7,7 @@ export default function TermsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12">
       <h1 className="text-3xl font-bold tracking-tight">Addashly Terms of Service</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Last updated: March 21, 2026</p>
+      <p className="mt-2 text-sm text-muted-foreground">Last updated: April 5, 2026</p>
 
       <section className="mt-8 space-y-3">
         <h2 className="text-xl font-semibold">Use of service</h2>
@@ -33,6 +33,11 @@ export default function TermsPage() {
           Integrations with third-party platforms are subject to those
           platforms&apos; terms and policies. Availability of integrations may
           change based on third-party service terms.
+        </p>
+        <p className="text-muted-foreground">
+          For Google Ads integrations, users authorize Addashly to access
+          reporting data required for dashboard analytics. Addashly does not use
+          Google Ads API access to manage live campaigns on behalf of users.
         </p>
         <p className="text-muted-foreground">
           For Meta (Facebook) integrations, you agree to use Addashly in

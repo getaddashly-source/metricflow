@@ -3,19 +3,22 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 
 export function ShopifyConnectForm({ clientId }: { clientId: string }) {
   const [shop, setShop] = useState("");
   const [error, setError] = useState("");
+  const [connecting, setConnecting] = useState(false);
 
   function handleConnect() {
     setError("");
+    setConnecting(true);
 
     // Normalize: add .myshopify.com if user just typed the store name
     let domain = shop.trim().toLowerCase();
     if (!domain) {
       setError("Please enter your Shopify store domain");
+      setConnecting(false);
       return;
     }
 
@@ -34,6 +37,7 @@ export function ShopifyConnectForm({ clientId }: { clientId: string }) {
     // Validate
     if (!/^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/.test(domain)) {
       setError("Invalid store domain. Example: my-store.myshopify.com");
+      setConnecting(false);
       return;
     }
 
@@ -48,12 +52,17 @@ export function ShopifyConnectForm({ clientId }: { clientId: string }) {
           placeholder="my-store.myshopify.com"
           value={shop}
           onChange={(e) => setShop(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleConnect()}
+          onKeyDown={(e) => e.key === "Enter" && !connecting && handleConnect()}
           className="max-w-xs"
+          disabled={connecting}
         />
-        <Button onClick={handleConnect}>
-          <Plus className="mr-1 h-4 w-4" />
-          Connect Shopify
+        <Button onClick={handleConnect} disabled={connecting}>
+          {connecting ? (
+            <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+          ) : (
+            <Plus className="mr-1 h-4 w-4" />
+          )}
+          {connecting ? "Connecting..." : "Connect Shopify"}
         </Button>
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}

@@ -17,7 +17,21 @@ export default function ContactPage() {
         <a href="mailto:Hello@addashly.com" className="mt-1 block text-lg font-medium underline">
           Hello@addashly.com
         </a>
+        <p className="mt-3 text-sm text-muted-foreground">
+          For Google Ads API compliance inquiries, include your organization
+          name, account email, and request type in your message subject.
+        </p>
       </div>
+
+      <section className="mt-8 rounded-lg border p-6">
+        <h2 className="text-lg font-semibold">Compliance and policy links</h2>
+        <ul className="mt-3 list-disc space-y-2 pl-6 text-sm text-muted-foreground">
+          <li><a href="/google-ads-api" className="underline">Google Ads API Use Case</a></li>
+          <li><a href="/privacy" className="underline">Privacy Policy</a></li>
+          <li><a href="/terms" className="underline">Terms of Service</a></li>
+          <li><a href="/data-deletion" className="underline">Data Deletion</a></li>
+        </ul>
+      </section>
     </main>
   );
 }
