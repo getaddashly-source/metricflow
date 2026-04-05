@@ -43,6 +43,7 @@ export async function updateSession(request: NextRequest) {
   const publicPaths = new Set([
     "/",
     "/about",
+    "/google-ads-api",
     "/privacy",
     "/terms",
     "/contact",
