@@ -20,7 +20,6 @@ interface GoogleCustomerClient {
 }
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_ADS_API_BASE = "https://googleads.googleapis.com/v17";
 const DASHBOARD_PATH = "/dashboard";
 
 function env(key: string): string {
@@ -42,6 +41,26 @@ function dashboardRedirect(
     url.searchParams.set(key, value);
   }
   return NextResponse.redirect(url);
+}
+
+function googleAdsApiBase(): string {
+  const version = process.env.GOOGLE_ADS_API_VERSION ?? "v20";
+  return `https://googleads.googleapis.com/${version}`;
+}
+
+async function parseJsonResponse(
+  res: Response,
+  context: string,
+): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    const snippet = text.slice(0, 200).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `${context} returned non-JSON response (${res.status}): ${snippet || "<empty>"}`,
+    );
+  }
 }
 
 async function exchangeCodeForTokens(code: string): Promise<GoogleTokenResponse> {
@@ -70,25 +89,33 @@ async function exchangeCodeForTokens(code: string): Promise<GoogleTokenResponse>
 async function fetchAccessibleCustomers(
   accessToken: string,
 ): Promise<string[]> {
-  const url = `${GOOGLE_ADS_API_BASE}/customers:listAccessibleCustomers`;
+  const url = `${googleAdsApiBase()}/customers:listAccessibleCustomers`;
 
   const res = await fetch(url, {
+    method: "GET",
     headers: {
       "Authorization": `Bearer ${accessToken}`,
       "developer-token": env("GOOGLE_ADS_DEVELOPER_TOKEN"),
+      "Accept": "application/json",
     },
   });
 
-  const body = await res.json();
+  const body = await parseJsonResponse(res, "Google accessible customers endpoint");
 
   if (!res.ok) {
+    const error = body.error as { message?: string } | undefined;
     throw new Error(
-      `Failed to fetch accessible customers: ${body.error?.message ?? res.statusText}`,
+      `Failed to fetch accessible customers: ${error?.message ?? res.statusText}`,
     );
   }
 
   // Returns { resourceNames: ["customers/1234567890", ...] }
-  return (body.resourceNames ?? []).map((rn: string) => rn.replace("customers/", ""));
+  const resourceNames = Array.isArray(body.resourceNames)
+    ? body.resourceNames
+    : [];
+  return resourceNames
+    .filter((rn): rn is string => typeof rn === "string")
+    .map((rn) => rn.replace("customers/", ""));
 }
 
 async function fetchCustomerInfo(
@@ -103,7 +130,7 @@ async function fetchCustomerInfo(
     LIMIT 1
   `.trim();
 
-  const url = `${GOOGLE_ADS_API_BASE}/customers/${cleanId}/googleAds:search`;
+  const url = `${googleAdsApiBase()}/customers/${cleanId}/googleAds:search`;
 
   const res = await fetch(url, {
     method: "POST",
@@ -118,14 +145,17 @@ async function fetchCustomerInfo(
     body: JSON.stringify({ query }),
   });
 
-  const body = await res.json();
+  const body = await parseJsonResponse(res, "Google customer info endpoint");
 
   if (!res.ok) {
     // If we can't get info for this customer, return basic info
     return { id: cleanId, name: `Account ${cleanId}` };
   }
 
-  const row = body.results?.[0];
+  const results = Array.isArray(body.results)
+    ? (body.results as Array<{ customer?: { id: string; descriptiveName?: string; manager?: boolean } }>)
+    : [];
+  const row = results[0];
   if (row?.customer) {
     return {
       id: row.customer.id,

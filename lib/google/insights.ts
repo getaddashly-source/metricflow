@@ -1,8 +1,12 @@
 import { decryptGoogleToken, encryptGoogleToken } from "@/lib/google/encryption";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const GOOGLE_ADS_API_BASE = "https://googleads.googleapis.com/v17";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+function googleAdsApiBase(): string {
+  const version = process.env.GOOGLE_ADS_API_VERSION ?? "v20";
+  return `https://googleads.googleapis.com/${version}`;
+}
 
 export interface GoogleCampaignInsight {
   campaign_id: string;
@@ -138,7 +142,7 @@ export async function fetchCampaignInsights(
   let pageToken: string | null = null;
 
   do {
-    const url = `${GOOGLE_ADS_API_BASE}/customers/${cleanCustomerId}/googleAds:searchStream`;
+    const url = `${googleAdsApiBase()}/customers/${cleanCustomerId}/googleAds:searchStream`;
 
     const res = await fetch(url, {
       method: "POST",

@@ -4,6 +4,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { decryptGoogleToken } from "@/lib/google/encryption";
 import { getValidAccessToken } from "@/lib/google/insights";
 
+function googleAdsApiBase(): string {
+  const version = process.env.GOOGLE_ADS_API_VERSION ?? "v20";
+  return `https://googleads.googleapis.com/${version}`;
+}
+
 export async function GET() {
   const supabase = await createClient();
   const {
@@ -68,7 +73,7 @@ export async function GET() {
   `.trim();
 
   const campaignsRes = await fetch(
-    `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+    `${googleAdsApiBase()}/customers/${customerId}/googleAds:search`,
     {
       method: "POST",
       headers: {
@@ -104,7 +109,7 @@ export async function GET() {
   `.trim();
 
   const insightsRes = await fetch(
-    `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:search`,
+    `${googleAdsApiBase()}/customers/${customerId}/googleAds:search`,
     {
       method: "POST",
       headers: {
