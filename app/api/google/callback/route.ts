@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptGoogleToken } from "@/lib/google/encryption";
+import { persistGoogleConnection } from "@/lib/google/connection";
 
 interface GoogleTokenResponse {
   access_token: string;
@@ -48,6 +50,10 @@ function googleAdsApiBase(): string {
   return `https://googleads.googleapis.com/${version}`;
 }
 
+function googleDeveloperToken(): string {
+  return env("GOOGLE_ADS_DEVELOPER_TOKEN").trim();
+}
+
 async function parseJsonResponse(
   res: Response,
   context: string,
@@ -89,18 +95,42 @@ async function exchangeCodeForTokens(code: string): Promise<GoogleTokenResponse>
 async function fetchAccessibleCustomers(
   accessToken: string,
 ): Promise<string[]> {
-  const url = `${googleAdsApiBase()}/customers:listAccessibleCustomers`;
+  async function requestAccessibleCustomers(useQueryToken: boolean) {
+    const url = new URL(`${googleAdsApiBase()}/customers:listAccessibleCustomers`);
+    if (useQueryToken) {
+      // Fallback for environments where Authorization header is stripped on redirect.
+      url.searchParams.set("access_token", accessToken);
+    }
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      "Authorization": `Bearer ${accessToken}`,
-      "developer-token": env("GOOGLE_ADS_DEVELOPER_TOKEN"),
-      "Accept": "application/json",
-    },
-  });
+    const res = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        ...(useQueryToken
+          ? {}
+          : { Authorization: `Bearer ${accessToken}` }),
+        "developer-token": googleDeveloperToken(),
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
 
-  const body = await parseJsonResponse(res, "Google accessible customers endpoint");
+    const body = await parseJsonResponse(res, "Google accessible customers endpoint");
+    return { res, body };
+  }
+
+  let { res, body } = await requestAccessibleCustomers(false);
+
+  if (!res.ok) {
+    const error = body.error as { message?: string; status?: string } | undefined;
+    const message = error?.message ?? "";
+    const unauthenticated =
+      /missing required authentication credential/i.test(message) ||
+      error?.status === "UNAUTHENTICATED";
+
+    if (unauthenticated) {
+      ({ res, body } = await requestAccessibleCustomers(true));
+    }
+  }
 
   if (!res.ok) {
     const error = body.error as { message?: string } | undefined;
@@ -136,7 +166,7 @@ async function fetchCustomerInfo(
     method: "POST",
     headers: {
       "Authorization": `Bearer ${accessToken}`,
-      "developer-token": env("GOOGLE_ADS_DEVELOPER_TOKEN"),
+      "developer-token": googleDeveloperToken(),
       "Content-Type": "application/json",
       ...(process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID
         ? { "login-customer-id": process.env.GOOGLE_ADS_LOGIN_CUSTOMER_ID.replace(/-/g, "") }
@@ -275,64 +305,86 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // Use the first accessible customer
-  let customerInfo: { id: string; name: string; managerCustomerId?: string };
-  try {
-    customerInfo = await fetchCustomerInfo(tokenData.access_token, customerIds[0]);
-  } catch {
-    customerInfo = { id: customerIds[0], name: `Account ${customerIds[0]}` };
-  }
-
   const adminClient = createAdminClient();
-  const tokenExpiresAt = new Date(Date.now() + tokenData.expires_in * 1000).toISOString();
-  const encryptedAccessToken = encryptGoogleToken(tokenData.access_token);
-  const encryptedRefreshToken = encryptGoogleToken(tokenData.refresh_token);
+  const customerInfos = await Promise.all(
+    customerIds.map(async (customerId) => {
+      try {
+        return await fetchCustomerInfo(tokenData.access_token, customerId);
+      } catch {
+        return { id: customerId, name: `Account ${customerId}` };
+      }
+    }),
+  );
 
-  const { data: adAccountRow, error: upsertError } = await adminClient
-    .from("google_ad_accounts")
-    .upsert(
-      {
+  if (customerInfos.length > 1) {
+    const selectionToken = randomBytes(32).toString("hex");
+    const selectionExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    const { error: selectionError } = await adminClient
+      .from("google_oauth_account_selections")
+      .insert({
         user_id: user.id,
         client_id: clientId,
-        google_customer_id: customerInfo.id,
-        google_account_name: customerInfo.name,
-        google_manager_id: customerInfo.managerCustomerId ?? null,
-        is_active: true,
-        connected_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id,client_id" },
-    )
-    .select("id")
-    .single();
+        selection_token: selectionToken,
+        access_token_enc: encryptGoogleToken(tokenData.access_token),
+        refresh_token_enc: encryptGoogleToken(tokenData.refresh_token),
+        token_expires_at: new Date(
+          Date.now() + tokenData.expires_in * 1000,
+        ).toISOString(),
+        scopes: tokenData.scope,
+        customer_options: customerInfos,
+        expires_at: selectionExpiry,
+      });
 
-  if (upsertError || !adAccountRow) {
-    console.error("[google/callback] Ad account upsert failed:", upsertError?.message);
+    await supabase.from("google_oauth_states").delete().eq("id", oauthState.id);
+
+    if (!selectionError) {
+      const selectUrl = request.nextUrl.clone();
+      selectUrl.pathname = "/dashboard/channels/google-ads/select-account";
+      selectUrl.search = "";
+      selectUrl.searchParams.set("token", selectionToken);
+      return NextResponse.redirect(selectUrl);
+    }
+
+    const missingSelectionTable =
+      /google_oauth_account_selections|schema cache/i.test(selectionError.message);
+
+    if (!missingSelectionTable) {
+      console.error("[google/callback] Failed to create account selection:", selectionError.message);
+      return dashboardRedirect(request, {
+        google_error: "save_failed",
+        message: "Failed to prepare account selection",
+      });
+    }
+
+    // Backward-compatible fallback when migration has not been applied yet.
+    console.warn(
+      "[google/callback] Selection table missing; auto-selecting first accessible account",
+    );
+  }
+
+  const selected = customerInfos[0];
+
+  const result = await persistGoogleConnection({
+    userId: user.id,
+    clientId,
+    account: {
+      id: selected.id,
+      name: selected.name,
+      managerCustomerId: selected.managerCustomerId,
+    },
+    accessToken: tokenData.access_token,
+    refreshToken: tokenData.refresh_token,
+    expiresIn: tokenData.expires_in,
+    scopes: tokenData.scope,
+  });
+
+  if (!result.ok) {
+    console.error("[google/callback] Persist connection failed:", result.error);
     await supabase.from("google_oauth_states").delete().eq("id", oauthState.id);
     return dashboardRedirect(request, {
       google_error: "save_failed",
       message: "Failed to save ad account connection",
-    });
-  }
-
-  const { error: tokenError } = await adminClient.from("google_tokens").upsert(
-    {
-      google_ad_account_id: adAccountRow.id,
-      access_token_enc: encryptedAccessToken,
-      refresh_token_enc: encryptedRefreshToken,
-      token_expires_at: tokenExpiresAt,
-      scopes: tokenData.scope,
-      last_refreshed_at: new Date().toISOString(),
-      refresh_error: null,
-    },
-    { onConflict: "google_ad_account_id" },
-  );
-
-  if (tokenError) {
-    console.error("[google/callback] Token upsert failed:", tokenError.message);
-    await supabase.from("google_oauth_states").delete().eq("id", oauthState.id);
-    return dashboardRedirect(request, {
-      google_error: "save_failed",
-      message: "Failed to store access token",
     });
   }
 
@@ -341,6 +393,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return dashboardRedirect(request, {
     google_connected: "true",
     client_id: clientId,
-    google_account_name: customerInfo.name ?? customerInfo.id,
+    google_account_name: result.accountName,
   });
 }

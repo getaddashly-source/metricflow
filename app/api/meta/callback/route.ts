@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { encryptToken } from "@/lib/meta/encryption";
+import { persistMetaConnection } from "@/lib/meta/connection";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -330,97 +332,92 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
   }
 
-  // Use the first active ad account (account_status 1 = ACTIVE)
-  const activeAccount =
-    adAccounts.find((a) => a.account_status === 1) ?? adAccounts[0];
+  // Prefer active accounts first for selection and fallback.
+  const orderedAccounts = [...adAccounts].sort((a, b) => {
+    if (a.account_status === 1 && b.account_status !== 1) return -1;
+    if (a.account_status !== 1 && b.account_status === 1) return 1;
+    return 0;
+  });
 
   // ── 6. Store ad account + encrypted token ─────────────────
-  // Use admin client (service_role) for all DB writes — bypasses RLS
-  // and ensures token insert is always allowed.
+  // Use admin client (service_role) for all DB writes.
   const adminClient = createAdminClient();
 
-  const tokenExpiresAt = new Date(
-    Date.now() + longLivedToken.expires_in * 1000,
-  ).toISOString();
+  if (orderedAccounts.length > 1) {
+    const selectionToken = randomBytes(32).toString("hex");
+    const selectionExpiry = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-  const encryptedToken = encryptToken(longLivedToken.access_token);
+    const { error: selectionError } = await adminClient
+      .from("meta_oauth_account_selections")
+      .insert({
+        user_id: user.id,
+        client_id: clientId,
+        selection_token: selectionToken,
+        access_token_enc: encryptToken(longLivedToken.access_token),
+        token_expires_at: new Date(
+          Date.now() + longLivedToken.expires_in * 1000,
+        ).toISOString(),
+        scopes: "ads_read",
+        meta_user_id: metaUserId,
+        account_options: orderedAccounts.map((account) => ({
+          id: account.id,
+          name: account.name,
+          businessId: account.business?.id ?? null,
+        })),
+        expires_at: selectionExpiry,
+      });
 
-  const accountPayload = {
-    user_id: user.id,
-    client_id: clientId,
-    meta_account_id: activeAccount.id,
-    meta_account_name: activeAccount.name,
-    meta_business_id: activeAccount.business?.id ?? null,
-    is_active: true,
-    connected_at: new Date().toISOString(),
-  };
+    await supabase.from("meta_oauth_states").delete().eq("id", oauthState.id);
 
-  // Upsert the ad account (handles reconnection after disconnect)
-  // Keep this payload compatible with older schemas.
-  const { data: adAccountRow, error: upsertError } = await adminClient
-    .from("meta_ad_accounts")
-    .upsert(accountPayload, { onConflict: "user_id,client_id" })
-    .select("id")
-    .single();
+    if (!selectionError) {
+      const selectUrl = request.nextUrl.clone();
+      selectUrl.pathname = "/dashboard/channels/meta-ads/select-account";
+      selectUrl.search = "";
+      selectUrl.searchParams.set("token", selectionToken);
+      return NextResponse.redirect(selectUrl);
+    }
 
-  if (upsertError || !adAccountRow) {
-    console.error(
-      "[meta/callback] Ad account upsert failed:",
-      upsertError?.message,
-      upsertError?.details,
-      upsertError?.hint,
+    const missingSelectionTable =
+      /meta_oauth_account_selections|schema cache/i.test(selectionError.message);
+
+    if (!missingSelectionTable) {
+      console.error(
+        "[meta/callback] Failed to create account selection:",
+        selectionError.message,
+      );
+      return dashboardRedirect(request, {
+        meta_error: "save_failed",
+        message: "Failed to prepare account selection",
+      });
+    }
+
+    console.warn(
+      "[meta/callback] Selection table missing; auto-selecting first accessible account",
     );
+  }
+
+  const selected = orderedAccounts[0];
+
+  const result = await persistMetaConnection({
+    userId: user.id,
+    clientId,
+    account: {
+      id: selected.id,
+      name: selected.name,
+      businessId: selected.business?.id ?? null,
+    },
+    accessToken: longLivedToken.access_token,
+    expiresIn: longLivedToken.expires_in,
+    scopes: "ads_read",
+    metaUserId,
+  });
+
+  if (!result.ok) {
+    console.error("[meta/callback] Persist connection failed:", result.error);
     await supabase.from("meta_oauth_states").delete().eq("id", oauthState.id);
     return dashboardRedirect(request, {
       meta_error: "save_failed",
       message: "Failed to save ad account connection",
-    });
-  }
-
-  // Best-effort persistence for installations that already have meta_user_id.
-  if (metaUserId) {
-    const { error: metaUserUpdateError } = await adminClient
-      .from("meta_ad_accounts")
-      .update({ meta_user_id: metaUserId })
-      .eq("id", adAccountRow.id);
-
-    // Ignore missing-column errors for backward compatibility.
-    if (
-      metaUserUpdateError &&
-      !metaUserUpdateError.message.includes("meta_user_id")
-    ) {
-      console.error(
-        "[meta/callback] meta_user_id update failed:",
-        metaUserUpdateError.message,
-      );
-    }
-  }
-
-  // Upsert the token (service_role bypasses RLS)
-  const { error: tokenError } = await adminClient.from("meta_tokens").upsert(
-    {
-      meta_ad_account_id: adAccountRow.id,
-      access_token_enc: encryptedToken,
-      token_expires_at: tokenExpiresAt,
-      scopes: "ads_read",
-      last_refreshed_at: new Date().toISOString(),
-      refresh_error: null,
-    },
-    { onConflict: "meta_ad_account_id" },
-  );
-
-  if (tokenError) {
-    console.error("[meta/callback] Token upsert failed:", {
-      message: tokenError.message,
-      details: tokenError.details,
-      hint: tokenError.hint,
-      code: tokenError.code,
-      adAccountId: adAccountRow.id,
-    });
-    await supabase.from("meta_oauth_states").delete().eq("id", oauthState.id);
-    return dashboardRedirect(request, {
-      meta_error: "save_failed",
-      message: "Failed to store access token",
     });
   }
 
@@ -431,6 +428,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return dashboardRedirect(request, {
     meta_connected: "true",
     client_id: clientId,
-    account_name: activeAccount.name ?? activeAccount.id,
+    account_name: result.accountName,
   });
 }
