@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 
 export function ShopifySyncButton() {
   const [syncing, setSyncing] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
 
   async function handleSync() {
     setSyncing(true);
-    setResult(null);
     try {
       const res = await fetch("/api/shopify/sync", {
         method: "POST",
@@ -19,7 +18,7 @@ export function ShopifySyncButton() {
       });
       const body = await res.json();
       if (!res.ok) {
-        setResult(`Error: ${body.error ?? "Sync failed"}`);
+        toast.error(body.error ?? "Shopify sync failed");
       } else {
         const failed = (body.results ?? []).filter(
           (r: { error?: string | null }) => !!r.error,
@@ -27,8 +26,8 @@ export function ShopifySyncButton() {
 
         if (failed.length > 0) {
           const first = failed[0] as { store?: string; error?: string };
-          setResult(
-            `Error: ${first.store ?? "Store"} sync failed${first.error ? ` (${first.error})` : ""}`,
+          toast.error(
+            `${first.store ?? "Store"} sync failed${first.error ? ` (${first.error})` : ""}`,
           );
           return;
         }
@@ -37,11 +36,11 @@ export function ShopifySyncButton() {
           (sum: number, r: { synced: number }) => sum + r.synced,
           0,
         );
-        setResult(`Synced ${total} Shopify orders`);
+        toast.success(`Synced ${total} Shopify orders`);
         setTimeout(() => window.location.reload(), 1200);
       }
     } catch {
-      setResult("Network error — check your connection");
+      toast.error("Network error — check your connection");
     } finally {
       setSyncing(false);
     }
@@ -49,13 +48,6 @@ export function ShopifySyncButton() {
 
   return (
     <div className="flex items-center gap-3">
-      {result && (
-        <span
-          className={`text-sm ${result.startsWith("Error") ? "text-red-600" : "text-green-600"}`}
-        >
-          {result}
-        </span>
-      )}
       <Button onClick={handleSync} disabled={syncing} variant="outline">
         <RefreshCw
           className={`mr-2 h-4 w-4 ${syncing ? "animate-spin" : ""}`}

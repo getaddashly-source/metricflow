@@ -8,6 +8,8 @@ import { GoogleSeedDemoButton } from "./google-seed-demo-button";
 import { ShopifySyncButton } from "./shopify-sync-button";
 import { ShopifySeedDemoButton } from "./shopify-seed-demo-button";
 import { AnalyticsDashboardShell } from "./analytics-dashboard-shell";
+import { isUiDemoMode } from "@/lib/demo/mode";
+import { getGoogleDemoInsights, getMetaDemoInsights } from "@/lib/demo/ads";
 
 interface InsightRow {
   campaign_id: string;
@@ -43,6 +45,7 @@ export default async function AnalyticsPage({
 }: {
   searchParams: Promise<{ range?: string }>;
 }) {
+  const demoMode = isUiDemoMode();
   const params = await searchParams;
   const range = params.range === "1" || params.range === "30" ? params.range : "7";
 
@@ -79,7 +82,7 @@ export default async function AnalyticsPage({
   const shopifyStore = shopifyStores?.[0] ?? null;
   const googleAccount = googleAccounts?.[0] ?? null;
 
-  if (!metaAccount && !shopifyStore && !googleAccount) {
+  if (!metaAccount && !shopifyStore && !googleAccount && !demoMode) {
     return (
       <div className="space-y-5">
         <div>
@@ -111,6 +114,17 @@ export default async function AnalyticsPage({
       .eq("meta_ad_account_id", metaAccount.id)
       .order("date_start", { ascending: true });
     insights = (data ?? []) as InsightRow[];
+  } else if (demoMode) {
+    insights = getMetaDemoInsights(30).map((row) => ({
+      campaign_id: row.campaign_id,
+      campaign_name: row.campaign_name,
+      impressions: row.impressions,
+      clicks: row.clicks,
+      spend: row.spend,
+      conversions: row.conversions,
+      conversion_value: row.conversion_value,
+      date_start: row.date_start,
+    }));
   }
 
   let googleInsights: GoogleInsightRow[] = [];
@@ -121,6 +135,17 @@ export default async function AnalyticsPage({
       .eq("google_ad_account_id", googleAccount.id)
       .order("date_start", { ascending: true });
     googleInsights = (data ?? []) as GoogleInsightRow[];
+  } else if (demoMode) {
+    googleInsights = getGoogleDemoInsights(30).map((row) => ({
+      campaign_id: row.campaign_id,
+      campaign_name: row.campaign_name,
+      impressions: row.impressions,
+      clicks: row.clicks,
+      spend: row.spend,
+      conversions: row.conversions,
+      conversion_value: row.conversion_value,
+      date_start: row.date_start,
+    }));
   }
 
   let shopifyOrders: ShopifyOrderRow[] = [];
@@ -137,8 +162,16 @@ export default async function AnalyticsPage({
     insights.length > 0 || googleInsights.length > 0 || shopifyOrders.length > 0;
 
   const connectedPlatforms: string[] = [];
-  if (metaAccount) connectedPlatforms.push(metaAccount.meta_account_name ?? metaAccount.meta_account_id);
-  if (googleAccount) connectedPlatforms.push(googleAccount.google_account_name ?? googleAccount.google_customer_id);
+  if (metaAccount) {
+    connectedPlatforms.push(metaAccount.meta_account_name ?? metaAccount.meta_account_id);
+  } else if (demoMode) {
+    connectedPlatforms.push("Meta Demo Account");
+  }
+  if (googleAccount) {
+    connectedPlatforms.push(googleAccount.google_account_name ?? googleAccount.google_customer_id);
+  } else if (demoMode) {
+    connectedPlatforms.push("Google Demo Account");
+  }
   if (shopifyStore) connectedPlatforms.push(shopifyStore.shop_name ?? shopifyStore.shop_domain);
 
   if (!hasData) {

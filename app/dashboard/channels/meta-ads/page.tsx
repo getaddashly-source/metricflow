@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Facebook } from "lucide-react";
 import { AdsChannelView } from "../ads-channel-view";
+import { isUiDemoMode } from "@/lib/demo/mode";
+import { getMetaDemoInsights } from "@/lib/demo/ads";
 
 const DEMO_CLIENT_ID = "demo-client";
 
@@ -17,6 +19,7 @@ type MetaRow = {
 };
 
 export default async function MetaAdsPage() {
+  const demoMode = isUiDemoMode();
   const supabase = await createClient();
   const {
     data: { user },
@@ -32,6 +35,31 @@ export default async function MetaAdsPage() {
     .limit(1);
 
   const account = accounts?.[0];
+  if (!account && demoMode) {
+    const rows = getMetaDemoInsights(30).map((row) => ({
+      campaign_id: row.campaign_id,
+      campaign_name: row.campaign_name,
+      date_start: row.date_start,
+      impressions: row.impressions,
+      clicks: row.clicks,
+      spend: row.spend,
+      conversion_value: row.conversion_value,
+    }));
+
+    return (
+      <AdsChannelView
+        title="Meta Ads"
+        subtitle="Channel performance breakdown (Demo Mode)"
+        accountLabel="Meta Demo Account"
+        rows={rows}
+        channelType="meta"
+        clientId={DEMO_CLIENT_ID}
+        icon={<Facebook className="h-6 w-6" />}
+        iconClassName="grid h-12 w-12 place-items-center rounded-xl bg-blue-600 text-white"
+      />
+    );
+  }
+
   if (!account) {
     return (
       <div className="rounded-2xl border border-zinc-200 bg-white p-10 text-center">

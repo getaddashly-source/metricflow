@@ -13,10 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DateRangeTabs } from "@/components/dashboard/date-range-tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { SyncButton } from "@/app/dashboard/analytics/sync-button";
 import { GoogleSyncButton } from "@/app/dashboard/analytics/google-sync-button";
 import { DisconnectButton } from "@/app/dashboard/disconnect-button";
 import { GoogleDisconnectButton } from "@/app/dashboard/google-disconnect-button";
+import { formatCompactNumber } from "@/lib/utils";
 
 type Row = {
   campaign_id: string;
@@ -62,6 +64,8 @@ export function AdsChannelView({
   clientId,
 }: Props) {
   const [range, setRange] = useState<"1" | "7" | "30">("7");
+  const [dailyPage, setDailyPage] = useState(1);
+  const dailyPageSize = 10;
 
   const view = useMemo(() => {
     const now = new Date();
@@ -103,8 +107,49 @@ export function AdsChannelView({
       .sort((a, b) => b.spend - a.spend)
       .slice(0, 8);
 
-    return { totalSpend, totalRevenue, cpm, roas, campaigns };
+    const dailyMap = new Map<string, { revenue: number; spend: number; conversions: number }>();
+
+    for (const row of filteredRows) {
+      const current = dailyMap.get(row.date_start) ?? {
+        revenue: 0,
+        spend: 0,
+        conversions: 0,
+      };
+
+      current.revenue += Number(row.conversion_value);
+      current.spend += Number(row.spend);
+      current.conversions += Math.max(0, Math.round(Number(row.clicks) * 0.08));
+      dailyMap.set(row.date_start, current);
+    }
+
+    const dailyRows = Array.from(dailyMap.entries())
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([date, metrics]) => {
+        const rowRoas = metrics.spend > 0 ? metrics.revenue / metrics.spend : 0;
+        const cpa = metrics.conversions > 0 ? metrics.spend / metrics.conversions : 0;
+        return {
+          date: new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          }),
+          revenue: metrics.revenue,
+          spend: metrics.spend,
+          roas: rowRoas,
+          cpa,
+          signal: signalFromRoas(rowRoas),
+        };
+      });
+
+    return { totalSpend, totalRevenue, cpm, roas, campaigns, dailyRows };
   }, [rows, range]);
+
+  const dailyTotalPages = Math.max(1, Math.ceil(view.dailyRows.length / dailyPageSize));
+  const safeDailyPage = Math.min(dailyPage, dailyTotalPages);
+  const paginatedDailyRows = useMemo(() => {
+    const start = (safeDailyPage - 1) * dailyPageSize;
+    return view.dailyRows.slice(start, start + dailyPageSize);
+  }, [safeDailyPage, view.dailyRows]);
 
   return (
     <div className="space-y-5">
@@ -145,11 +190,11 @@ export function AdsChannelView({
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-zinc-500">SPEND</CardTitle></CardHeader>
-            <CardContent><p className="text-5xl font-semibold">${view.totalSpend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p></CardContent>
+            <CardContent><p className="text-5xl font-semibold">{formatCompactNumber(view.totalSpend, 1, "$")}</p></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-zinc-500">REVENUE ATTRIBUTED</CardTitle></CardHeader>
-            <CardContent><p className="text-5xl font-semibold">${view.totalRevenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p></CardContent>
+            <CardContent><p className="text-5xl font-semibold">{formatCompactNumber(view.totalRevenue, 1, "$")}</p></CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-zinc-500">CPM</CardTitle></CardHeader>
@@ -175,8 +220,8 @@ export function AdsChannelView({
                 {view.campaigns.map((row) => (
                   <TableRow key={row.name}>
                     <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell>${row.spend.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
-                    <TableCell>${row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                    <TableCell>{formatCompactNumber(row.spend, 1, "$")}</TableCell>
+                    <TableCell>{formatCompactNumber(row.revenue, 1, "$")}</TableCell>
                     <TableCell className={row.rowRoas >= 4 ? "text-emerald-600" : row.rowRoas >= 3 ? "text-amber-600" : "text-rose-600"}>{row.rowRoas.toFixed(1)}x</TableCell>
                     <TableCell>${row.cpc.toFixed(2)}</TableCell>
                     <TableCell><Badge className={row.signal.className}>{row.signal.label}</Badge></TableCell>
@@ -184,6 +229,45 @@ export function AdsChannelView({
                 ))}
               </TableBody>
             </Table>
+          </CardContent>
+        </Card>
+
+        <Card className="mt-4">
+          <CardHeader><CardTitle>Daily Performance</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>DATE</TableHead>
+                  <TableHead>REVENUE</TableHead>
+                  <TableHead>SPEND</TableHead>
+                  <TableHead>ROAS</TableHead>
+                  <TableHead>CPA</TableHead>
+                  <TableHead>SIGNAL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedDailyRows.map((row) => (
+                  <TableRow key={row.date}>
+                    <TableCell className="font-medium">{row.date}</TableCell>
+                    <TableCell>{formatCompactNumber(row.revenue, 1, "$")}</TableCell>
+                    <TableCell>{formatCompactNumber(row.spend, 1, "$")}</TableCell>
+                    <TableCell className={row.roas >= 4 ? "text-emerald-600" : row.roas >= 3 ? "text-amber-600" : "text-rose-600"}>
+                      {row.roas.toFixed(1)}x
+                    </TableCell>
+                    <TableCell>{formatCompactNumber(row.cpa, 1, "$")}</TableCell>
+                    <TableCell><Badge className={row.signal.className}>{row.signal.label}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <Pagination
+              page={safeDailyPage}
+              totalItems={view.dailyRows.length}
+              pageSize={dailyPageSize}
+              onPageChange={setDailyPage}
+            />
           </CardContent>
         </Card>
       </div>

@@ -3,15 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
 import {
+  ArrowUpRight,
   Bell,
   ChartNoAxesColumn,
   CircleAlert,
   CircleCheck,
+  CircleDollarSign,
   Facebook,
   Gauge,
   Globe,
+  HandCoins,
   Target,
   TrendingDown,
+  Wallet,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,6 +130,18 @@ function deltaPill(value: number, invert?: boolean) {
   return <Badge className={className}>{percent(value)}</Badge>;
 }
 
+function summaryDeltaBadge(value: number, invert?: boolean) {
+  const positive = invert ? value < 0 : value > 0;
+  const className = positive
+    ? "bg-emerald-100 text-emerald-700"
+    : "bg-rose-100 text-rose-700";
+  return (
+    <Badge className={`h-7 rounded-full px-2.5 text-xs font-medium ${className}`}>
+      {percent(value)}
+    </Badge>
+  );
+}
+
 export function AnalyticsDashboardView({
   summary,
   trend,
@@ -227,33 +243,44 @@ export function AnalyticsDashboardView({
 
   return (
     <div className="space-y-5">
-      <div className="grid gap-4 xl:grid-cols-6">
-        <Card className="xl:col-span-2">
-          <CardHeader className="pb-1">
-            <CardTitle className="text-sm font-medium text-zinc-500">
-              BLENDED ROAS
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-6xl font-semibold tracking-tight text-zinc-900">
-              {roasValue(summary.blendedRoas)}
+      <div className="grid gap-2 xl:grid-cols-6">
+        <Card className="overflow-hidden border-zinc-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md xl:col-span-2">
+          <CardContent className="space-y-4 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                  <Gauge className="h-4 w-4" />
+                </div>
+                {summaryDeltaBadge(summary.blendedVsLastWeek)}
+              </div>
+              <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-400">
+                <ArrowUpRight className="h-4 w-4" />
+              </div>
             </div>
-            <div className="mt-5 grid gap-3 border-t pt-4 sm:grid-cols-3">
+
+            <div>
+              <p className="text-3xl font-semibold tracking-tight text-zinc-900">
+                {roasValue(summary.blendedRoas)}
+              </p>
+              <p className="mt-1 text-sm text-zinc-500">Blended ROAS</p>
+            </div>
+
+            <div className="grid gap-2 border-t border-zinc-100 pt-1 sm:grid-cols-3">
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-400">vs last week</p>
-                <p className="mt-1 text-xl font-semibold text-emerald-600">
+                <p className="mt-1 text-base font-semibold text-emerald-600">
                   {percent(summary.blendedVsLastWeek)}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-400">last period</p>
-                <p className="mt-1 text-xl font-semibold text-zinc-700">
+                <p className="mt-1 text-base font-semibold text-zinc-700">
                   {roasValue(summary.previousPeriodRoas)}
                 </p>
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-zinc-400">target</p>
-                <p className="mt-1 text-xl font-semibold text-emerald-600">
+                <p className="mt-1 text-base font-semibold text-emerald-600">
                   {roasValue(summary.targetRoas)}
                 </p>
               </div>
@@ -261,57 +288,89 @@ export function AnalyticsDashboardView({
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">TOTAL REVENUE</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <Card className="overflow-hidden border-zinc-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardContent className="space-y-4 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                  <CircleDollarSign className="h-4 w-4" />
+                </div>
+                {summaryDeltaBadge(summary.revenueDelta)}
+              </div>
+              <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-400">
+                <ArrowUpRight className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-semibold tracking-tight text-zinc-900">
               {compactCurrency(summary.totalRevenue)}
             </p>
-            {deltaPill(summary.revenueDelta)}
+            <p className="text-sm text-zinc-500">Total Revenue</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">TOTAL SPEND</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <Card className="overflow-hidden border-zinc-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardContent className="space-y-4 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                  <Wallet className="h-4 w-4" />
+                </div>
+                {summaryDeltaBadge(summary.spendDelta)}
+              </div>
+              <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-400">
+                <ArrowUpRight className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-semibold tracking-tight text-zinc-900">
               {compactCurrency(summary.totalSpend)}
             </p>
-            {deltaPill(summary.spendDelta)}
+            <p className="text-sm text-zinc-500">Total Spend</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">MER</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <Card className="overflow-hidden border-zinc-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardContent className="space-y-4 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                  <Target className="h-4 w-4" />
+                </div>
+                {summaryDeltaBadge(summary.merDelta)}
+              </div>
+              <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-400">
+                <ArrowUpRight className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-semibold tracking-tight text-zinc-900">
               {roasValue(summary.mer)}
             </p>
-            {deltaPill(summary.merDelta)}
+            <p className="text-sm text-zinc-500">MER</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-zinc-500">CPA</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <Card className="overflow-hidden border-zinc-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md">
+          <CardContent className="space-y-4 px-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-500">
+                  <HandCoins className="h-4 w-4" />
+                </div>
+                {summaryDeltaBadge(summary.cpaDelta, true)}
+              </div>
+              <div className="grid h-8 w-8 place-items-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-400">
+                <ArrowUpRight className="h-4 w-4" />
+              </div>
+            </div>
+            <p className="text-3xl font-semibold tracking-tight text-zinc-900">
               {currency(summary.cpa)}
             </p>
-            {deltaPill(summary.cpaDelta, true)}
+            <p className="text-sm text-zinc-500">CPA</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+        <Card className="transition-shadow duration-200 hover:shadow-md xl:col-span-2">
           <CardHeader className="pb-0">
             <CardTitle className="flex items-center gap-2 text-2xl">
               <ChartNoAxesColumn className="h-5 w-5 text-blue-500" />
@@ -324,7 +383,7 @@ export function AnalyticsDashboardView({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-2xl">
               <Gauge className="h-5 w-5 text-blue-500" />
@@ -368,29 +427,12 @@ export function AnalyticsDashboardView({
                 </div>
               );
             })}
-
-            <div className="pt-3">
-              <div className="mb-2 flex items-center justify-between text-sm font-medium text-zinc-700">
-                <span>Blended efficiency</span>
-                <span>
-                  {Math.min(summary.blendedRoas / summary.targetRoas, 1) * 100 >= 100
-                    ? "100%"
-                    : `${Math.round((summary.blendedRoas / summary.targetRoas) * 100)}%`}
-                </span>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-zinc-200">
-                <div
-                  className="h-full rounded-full bg-blue-500"
-                  style={{ width: `${Math.min((summary.blendedRoas / summary.targetRoas) * 100, 100)}%` }}
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 xl:grid-cols-3">
-        <Card className="xl:col-span-2">
+        <Card className="transition-shadow duration-200 hover:shadow-md xl:col-span-2">
           <CardHeader className="flex-row items-center justify-between">
             <div>
               <CardTitle className="text-2xl">Daily Performance</CardTitle>
@@ -435,7 +477,7 @@ export function AnalyticsDashboardView({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="transition-shadow duration-200 hover:shadow-md">
           <CardHeader>
             <CardTitle className="flex items-center justify-between text-2xl">
               <span className="flex items-center gap-2">

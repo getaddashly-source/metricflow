@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DateRangeTabs } from "@/components/dashboard/date-range-tabs";
+import { Pagination } from "@/components/ui/pagination";
 import { ShopifySyncButton } from "@/app/dashboard/analytics/shopify-sync-button";
 import { ShopifyDisconnectButton } from "@/app/dashboard/shopify-disconnect-button";
 
@@ -42,6 +43,14 @@ function toUtcDayTs(date: string) {
 
 export function ShopifyChannelView({ clientId, storeLabel, orders, products }: Props) {
   const [range, setRange] = useState<"1" | "7" | "30">("7");
+  const [dailyPage, setDailyPage] = useState(1);
+  const dailyPageSize = 10;
+
+  function signalFromRevenue(revenue: number) {
+    if (revenue >= 100000) return { label: "Scale", className: "bg-emerald-100 text-emerald-700" };
+    if (revenue >= 30000) return { label: "Hold", className: "bg-amber-100 text-amber-700" };
+    return { label: "Cut", className: "bg-rose-100 text-rose-700" };
+  }
 
   const view = useMemo(() => {
     const now = new Date();
@@ -63,14 +72,44 @@ export function ShopifyChannelView({ clientId, storeLabel, orders, products }: P
     // Show 0 when there are no orders to avoid misleading hardcoded values.
     const conversionRate = totalOrders > 0 ? 3.4 : 0;
 
+    const dailyRows = rows
+      .slice()
+      .sort((a, b) => b.order_date.localeCompare(a.order_date))
+      .map((row) => {
+        const revenue = Number(row.net_revenue);
+        const ordersCount = Number(row.total_orders);
+        const aov = ordersCount > 0 ? revenue / ordersCount : 0;
+        const signal = signalFromRevenue(revenue);
+
+        return {
+          date: new Date(`${row.order_date}T00:00:00Z`).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            timeZone: "UTC",
+          }),
+          revenue,
+          orders: ordersCount,
+          aov,
+          signal,
+        };
+      });
+
     return {
       totalRevenue,
       totalOrders,
       avgOrderValue,
       conversionRate,
       topRevenue,
+      dailyRows,
     };
   }, [range, orders, products]);
+
+  const dailyTotalPages = Math.max(1, Math.ceil(view.dailyRows.length / dailyPageSize));
+  const safeDailyPage = Math.min(dailyPage, dailyTotalPages);
+  const paginatedDailyRows = useMemo(() => {
+    const start = (safeDailyPage - 1) * dailyPageSize;
+    return view.dailyRows.slice(start, start + dailyPageSize);
+  }, [safeDailyPage, view.dailyRows]);
 
   return (
     <div className="space-y-5">
@@ -115,6 +154,41 @@ export function ShopifyChannelView({ clientId, storeLabel, orders, products }: P
             <CardContent><p className="text-5xl font-semibold">{view.conversionRate.toFixed(1)}%</p></CardContent>
           </Card>
         </div>
+
+        <Card className="mt-4">
+          <CardHeader><CardTitle>Daily Performance</CardTitle></CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>DATE</TableHead>
+                  <TableHead>REVENUE</TableHead>
+                  <TableHead>ORDERS</TableHead>
+                  <TableHead>AVG ORDER VALUE</TableHead>
+                  <TableHead>SIGNAL</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedDailyRows.map((row) => (
+                  <TableRow key={row.date}>
+                    <TableCell className="font-medium">{row.date}</TableCell>
+                    <TableCell>${row.revenue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</TableCell>
+                    <TableCell>{row.orders.toLocaleString()}</TableCell>
+                    <TableCell>${row.aov.toFixed(2)}</TableCell>
+                    <TableCell><Badge className={row.signal.className}>{row.signal.label}</Badge></TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+
+            <Pagination
+              page={safeDailyPage}
+              totalItems={view.dailyRows.length}
+              pageSize={dailyPageSize}
+              onPageChange={setDailyPage}
+            />
+          </CardContent>
+        </Card>
 
         <Card className="mt-4">
           <CardHeader><CardTitle>Top Products by Revenue</CardTitle></CardHeader>

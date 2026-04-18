@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { PerformanceClientView } from "./performance-client-view";
+import { isUiDemoMode } from "@/lib/demo/mode";
+import { getGoogleDemoInsights, getMetaDemoInsights } from "@/lib/demo/ads";
 
 type MetaRow = {
   date_start: string;
@@ -25,6 +27,7 @@ type ShopifyRow = {
 };
 
 export default async function PerformancePage() {
+  const demoMode = isUiDemoMode();
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,6 +68,14 @@ export default async function PerformancePage() {
       .eq("meta_ad_account_id", metaId)
       .order("date_start", { ascending: true });
     metaRows = (data ?? []) as MetaRow[];
+  } else if (demoMode) {
+    metaRows = getMetaDemoInsights(30).map((row) => ({
+      date_start: row.date_start,
+      impressions: row.impressions,
+      spend: row.spend,
+      conversions: row.conversions,
+      conversion_value: row.conversion_value,
+    }));
   }
 
   let googleRows: GoogleRow[] = [];
@@ -75,6 +86,14 @@ export default async function PerformancePage() {
       .eq("google_ad_account_id", googleId)
       .order("date_start", { ascending: true });
     googleRows = (data ?? []) as GoogleRow[];
+  } else if (demoMode) {
+    googleRows = getGoogleDemoInsights(30).map((row) => ({
+      date_start: row.date_start,
+      impressions: row.impressions,
+      spend: row.spend,
+      conversions: row.conversions,
+      conversion_value: row.conversion_value,
+    }));
   }
 
   let shopifyRows: ShopifyRow[] = [];

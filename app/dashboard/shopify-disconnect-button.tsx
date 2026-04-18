@@ -3,19 +3,16 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { DisconnectConfirmDialog } from "@/components/dashboard/disconnect-confirm-dialog";
 import { Unplug } from "lucide-react";
+import { toast } from "sonner";
 
 export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const router = useRouter();
 
   async function handleDisconnect() {
-    if (!confirm("Are you sure you want to disconnect this Shopify store?")) {
-      return;
-    }
-
-    setResult(null);
     setLoading(true);
     try {
       const res = await fetch("/api/shopify/disconnect", {
@@ -25,14 +22,15 @@ export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
       });
 
       if (res.ok) {
-        setResult("Disconnected Shopify store");
+        setConfirmOpen(false);
+        toast.success("Disconnected Shopify store");
         setTimeout(() => router.refresh(), 1200);
       } else {
         const body = await res.json().catch(() => ({}));
-        setResult(`Error: ${body.error ?? "Disconnect failed"}`);
+        toast.error(body.error ?? "Shopify disconnect failed");
       }
     } catch {
-      setResult("Error: Network error — check your connection");
+      toast.error("Network error — check your connection");
     } finally {
       setLoading(false);
     }
@@ -40,22 +38,24 @@ export function ShopifyDisconnectButton({ clientId }: { clientId: string }) {
 
   return (
     <div className="flex items-center gap-3">
-      {result && (
-        <span
-          className={`text-sm ${result.startsWith("Error") ? "text-red-600" : "text-green-600"}`}
-        >
-          {result}
-        </span>
-      )}
       <Button
         variant="destructive"
         size="sm"
-        onClick={handleDisconnect}
+        onClick={() => setConfirmOpen(true)}
         disabled={loading}
       >
         <Unplug className="mr-1 h-3 w-3" />
         {loading ? "Disconnecting..." : "Disconnect"}
       </Button>
+
+      <DisconnectConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handleDisconnect}
+        loading={loading}
+        title="Disconnect Shopify store?"
+        description="This will stop future syncs and unlink this Shopify store from your dashboard."
+      />
     </div>
   );
 }

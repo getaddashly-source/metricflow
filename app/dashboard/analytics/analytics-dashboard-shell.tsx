@@ -128,22 +128,17 @@ export function AnalyticsDashboardShell({
 
     const totalAdSpend = currentAdRows.reduce((sum, row) => sum + Number(row.spend), 0);
     const totalConversions = currentAdRows.reduce((sum, row) => sum + Number(row.conversions), 0);
-    const attributedAdRevenue = currentAdRows.reduce((sum, row) => sum + Number(row.conversion_value), 0);
 
     const shopifyRevenue = filteredShopify.reduce((sum, row) => sum + Number(row.net_revenue), 0);
-    const totalRevenue = shopifyRevenue + attributedAdRevenue;
+    const totalRevenue = shopifyRevenue;
 
     const previousSpend = previousAdRows.reduce((sum, row) => sum + Number(row.spend), 0);
     const previousConversions = previousAdRows.reduce((sum, row) => sum + Number(row.conversions), 0);
-    const previousAttributedRevenue = previousAdRows.reduce(
-      (sum, row) => sum + Number(row.conversion_value),
-      0,
-    );
     const previousShopifyRevenue = previousShopify.reduce(
       (sum, row) => sum + Number(row.net_revenue),
       0,
     );
-    const previousTotalRevenue = previousAttributedRevenue + previousShopifyRevenue;
+    const previousTotalRevenue = previousShopifyRevenue;
 
     const blendedRoas = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
     const mer = totalAdSpend > 0 ? totalRevenue / totalAdSpend : 0;
@@ -197,7 +192,6 @@ export function AnalyticsDashboardShell({
       const key = row.date_start;
       const current = dayMap.get(key);
       if (!current) continue;
-      current.revenue += Number(row.conversion_value);
       current.spend += Number(row.spend);
       current.conversions += Number(row.conversions);
     }

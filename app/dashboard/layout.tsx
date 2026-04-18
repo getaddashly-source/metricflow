@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
+import { AutoSyncRunner } from "./auto-sync-runner";
+import { isUiDemoMode } from "@/lib/demo/mode";
 
 async function signOut() {
   "use server";
@@ -17,6 +19,7 @@ export default async function DashboardLayout({
 }: {
   children: ReactNode;
 }) {
+  const demoMode = isUiDemoMode();
   const supabase = await createClient();
   const {
     data: { user },
@@ -65,7 +68,10 @@ export default async function DashboardLayout({
             </form>
           </header>
 
-          <main className="flex-1 p-4 lg:p-8">{children}</main>
+          <main className="flex-1 p-4 lg:p-8">
+            <AutoSyncRunner userId={user.id} enabled={!demoMode} />
+            {children}
+          </main>
         </div>
       </div>
     </div>

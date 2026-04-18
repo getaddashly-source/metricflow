@@ -29,7 +29,7 @@ const DEMO_CAMPAIGNS = [
     type: "SHOPPING",
     baseImpressions: 28000,
     baseCtr: 2.1,
-    baseSpend: 210,
+    baseSpend: 21110,
     conversionRate: 0.038,
     avgOrderValue: 92,
   },
