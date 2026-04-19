@@ -20,7 +20,7 @@ export default async function LoginPage({
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold">Addashly</CardTitle>
           <CardDescription>
-            Sign in to your marketing analytics dashboard
+            Sign in with credentials created by your admin
           </CardDescription>
         </CardHeader>
         <CardContent>

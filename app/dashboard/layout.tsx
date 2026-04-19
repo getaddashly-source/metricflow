@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { SidebarNav } from "./sidebar-nav";
 import { AutoSyncRunner } from "./auto-sync-runner";
 import { isUiDemoMode } from "@/lib/demo/mode";
+import { requireAuthenticatedUserWithProfile } from "@/lib/auth/roles";
 
 async function signOut() {
   "use server";
@@ -20,14 +21,7 @@ export default async function DashboardLayout({
   children: ReactNode;
 }) {
   const demoMode = isUiDemoMode();
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/login");
-  }
+  const { user, profile } = await requireAuthenticatedUserWithProfile();
 
   const initials = (user.email ?? "U").slice(0, 2).toUpperCase();
 
@@ -38,7 +32,7 @@ export default async function DashboardLayout({
           <div className="border-b border-zinc-200 px-6 py-6">
             <p className="text-3xl font-bold tracking-tight">Addashly</p>
           </div>
-          <SidebarNav />
+          <SidebarNav isAdmin={profile.role === "admin"} />
 
           <div className="border-t border-zinc-200 p-4">
             <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white p-3">

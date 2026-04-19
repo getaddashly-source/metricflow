@@ -36,7 +36,7 @@ function SidebarLink({
   );
 }
 
-export function SidebarNav() {
+export function SidebarNav({ isAdmin }: { isAdmin: boolean }) {
   const pathname = usePathname();
 
   const isDashboard = pathname === "/dashboard/analytics";
@@ -44,6 +44,7 @@ export function SidebarNav() {
   const isMeta = pathname === "/dashboard/channels/meta-ads";
   const isGoogle = pathname === "/dashboard/channels/google-ads";
   const isShopify = pathname === "/dashboard/channels/shopify";
+  const isClients = pathname === "/dashboard/clients";
 
   return (
     <div className="flex-1 space-y-6 px-4 py-6">
@@ -87,10 +88,14 @@ export function SidebarNav() {
 
       <div className="space-y-2">
         <p className="px-3 text-xs font-semibold uppercase tracking-widest text-zinc-400">Manage</p>
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600">
-          <Users className="h-4 w-4" />
-          Clients
-        </div>
+        {isAdmin ? (
+          <SidebarLink
+            href="/dashboard/clients"
+            label="Clients"
+            icon={<Users className="h-4 w-4" />}
+            active={isClients}
+          />
+        ) : null}
         <div className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-zinc-600">
           <Bell className="h-4 w-4" />
           Alerts

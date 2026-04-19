@@ -2,31 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { Loader2 } from "lucide-react";
-import { login, signup } from "./actions";
+import { login } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type PendingAction = "login" | "signup" | null;
+type PendingAction = "login" | null;
 
 export function LoginForm() {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [isPending, startTransition] = useTransition();
 
-  const pendingLabel =
-    pendingAction === "signup" ? "Creating account..." : "Logging in...";
+  const pendingLabel = pendingAction === "login" ? "Logging in..." : "Logging in...";
 
   function handleLogin(formData: FormData) {
     setPendingAction("login");
     startTransition(() => {
       void login(formData);
-    });
-  }
-
-  function handleSignup(formData: FormData) {
-    setPendingAction("signup");
-    startTransition(() => {
-      void signup(formData);
     });
   }
 
@@ -63,16 +55,15 @@ export function LoginForm() {
             {pendingLabel}
           </Button>
         ) : (
-          <div className="flex gap-2">
-            <Button formAction={handleLogin} className="flex-1">
-              Log in
-            </Button>
-            <Button formAction={handleSignup} variant="outline" className="flex-1">
-              Sign up
-            </Button>
-          </div>
+          <Button formAction={handleLogin} className="w-full">
+            Log in
+          </Button>
         )}
       </div>
+
+      <p className="text-center text-xs text-zinc-500">
+        Accounts are created by admin only. Contact your admin for access.
+      </p>
     </form>
   );
 }
